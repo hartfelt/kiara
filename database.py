@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
-
 import sqlite3
 
-conn = None
+conn, username = None, None
 
-def connect(database):
-	global conn
+def connect(database, user):
+	global conn, username
 	conn = sqlite3.connect(database)
+	username = user
+	
 	c = conn.cursor()
 	
 	# Create tables if they do not exist.
@@ -22,7 +22,6 @@ def connect(database):
 			hash text,
 			size integer,
 			username text,
-			added boolean,
 			watched boolean
 		);
 	''')
@@ -50,23 +49,46 @@ def load(thing):
 			WHERE hash = ? AND size = ?
 		''', (thing.hash, thing.size))
 		r = c.fetchone()
-		if r:
-			if r[0] != thing.name:
-				print('Filename in database have changed')
-				thing.dirty = True
-		else:
-			# New thing
+		if not r:
+			# This is a new thing
 			thing.dirty = True
+			return
+		
+		if r[0] != thing.name:
+			print('Filename in database have changed')
+			thing.dirty = True
+		
+		# Look up the status.
+		c.execute('''
+			SELECT watched
+			FROM file_status
+			WHERE hash = ? AND size = ? AND username = ?
+		''', (thing.hash, thing.size, username))
+		r = c.fetchone()
+		if r:
+			thing.added = True
+			thing.watched = bool(r[0])
 
 def save(thing):
 	if thing.dirty:
 		c = conn.cursor()
 		c.execute('''
 			DELETE FROM file
-			WHERE hash = ?
-		''', (thing.hash,))
+			WHERE hash = ? AND size = ?
+		''', (thing.hash, thing.size))
 		c.execute('''
 			INSERT INTO file (hash, filename, size)
 			VALUES (?, ?, ?)
 		''', (thing.hash, thing.name, thing.size))
+		
+		c.execute('''
+			DELETE FROM file_status
+			WHERE hash = ? AND size = ? AND username = ?
+		''', (thing.hash, thing.size, username))
+		if thing.added:
+			c.execute('''
+				INSERT INTO file_status (hash, size, username, watched)
+				VALUES (?, ?, ?, ?)
+			''', (thing.hash, thing.size, username, thing.watched))
+			
 		conn.commit()
