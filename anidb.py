@@ -60,6 +60,7 @@ def _comm(command, **kwargs):
 	
 	# Receive shit
 	reply = sock.recv(1400).decode().strip()
+	print('>>>', reply)
 	if reply[0:3] == "555":
 		print("We got banned :(")
 		print(reply)
@@ -90,10 +91,10 @@ def ping():
 	return False
 
 def _delete_session():
-	try:
+	if os.path.isfile(os.path.expanduser(config['session'])):
 		os.remove(os.path.expanduser(config['session']))
-	except OSError:
-		pass # The file is likely not there.
+	else:
+		print('would have deleted session file, but it is gone')
 
 def _connect():
 	global session_key, sock
@@ -103,21 +104,17 @@ def _connect():
 		sock.connect((config['host'], int(config['port'])))
 		sock.settimeout(10)
 	
-	# If we have a session key, we assume that we are connected.
 	if not session_key:
-		# We might be connected already, check the conf file.
+		# Load session key from file
 		try:
 			with open(os.path.expanduser(config['session']), 'r') as fp:
 				session_key = fp.read().strip()
-				if not ping():
-					session_key = None
 		except IOError:
-			session_key = None
+			pass
 		except Exception as e:
 			print('we caught exception:', type(e), repr(e), e)
-			session_key = None
 	
-	# Still no key? Guess we'll have to connect now.
+	# If we have a session key, we assume that we are connected.
 	if not session_key:
 		print('Logging in')
 		code, key = _comm(
@@ -149,8 +146,8 @@ def _connect():
 			print(code, reply)
 			sys.exit()
 		
-		print("Login successful, we got session key %s" % key)
 		session_key = key.split()[0]
+		print("Login successful, we got session key %s" % session_key)
 	
 	# Save the session key for future use.
 	if session_key:
@@ -162,7 +159,21 @@ def _connect():
 def load_info(thing):
 	print('loading info')
 	_connect()
-	print('TODO: load_info', thing)
+	lookup = {
+		'fmask': '0808000000',
+		'amask': '80808040',
+		's': session_key,
+	}
+	if thing.fid:
+		lookup['fid'] = thing.fid
+	else:
+		lookup['size'] = thing.size
+		lookup['ed2k'] = thing.hash
+		
+	print('lookup', lookup)
+	code, reply = _comm('FILE', **lookup)
+	print(code, reply)
+	# fmask=0808000000 amask=80808040
 
 def add(thing):
 	_connect()

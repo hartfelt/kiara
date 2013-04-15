@@ -14,15 +14,17 @@ def connect(database, user):
 		CREATE TABLE IF NOT EXISTS file (
 			hash text,
 			filename text,
-			size integer
+			size integer,
+			fid integer,
+			aid integer
 		)
 	''')
 	c.execute('''
 		CREATE TABLE IF NOT EXISTS file_status (
-			hash text,
-			size integer,
+			fid integer,
 			username text,
-			watched boolean
+			watched boolean,
+			mylist_id integer
 		);
 	''')
 	conn.commit()

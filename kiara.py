@@ -73,6 +73,9 @@ class KiaraFile(object):
 		self.name = os.path.basename(file.name)
 		self.size = os.path.getsize(file.name)
 		
+		self.fid = None
+		self.mylist_id = None
+		
 		self.dirty = False # Should this be saved.
 		self.hash = None
 		self.added = False
