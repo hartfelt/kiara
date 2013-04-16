@@ -112,7 +112,6 @@ class Handler(socketserver.BaseRequestHandler):
 	
 	def handle(self):
 		data = self.request.recv(1024).strip().decode('UTF-8')
-		print('>>>', data, file=sys.__stdout__)
 		
 		if data == 'ping':
 			if anidb.ping(self):

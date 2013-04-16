@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
-import os.path
+import os, os.path
 import sys
+import subprocess
 import argparse
 import socket
+import time
 
 # Default confg values.
 config = {
@@ -57,18 +59,37 @@ if config_err:
 	sys.exit(-1)
 
 def send(msg):
-	client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-	client.connect(os.path.expanduser(config['session']))
-	client.sendall(bytes(msg, 'UTF-8'))
-	data = ''
-	while True:
-		data += str(client.recv(1024), 'UTF-8')
-		if data == '---end---':
-			client.close()
-			return
-		if '\n' in data:
-			item, data = data.split('\n', 1)
-			yield item
+	def inner():
+		client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+		client.connect(os.path.expanduser(config['session']))
+		client.sendall(bytes(msg, 'UTF-8'))
+		data = ''
+		while True:
+			data += str(client.recv(1024), 'UTF-8')
+			if data == '---end---':
+				client.close()
+				return
+			if '\n' in data:
+				item, data = data.split('\n', 1)
+				yield item
+	try:
+		for i in inner():
+			yield i
+	except socket.error:
+		print('Unable to contact the backend. Will try to start one...')
+		pargs = [sys.executable, os.path.join(
+			os.path.dirname(os.path.abspath(__file__)),
+			'kiarad.py')]
+		if args.config:
+			pargs.append('-c')
+			pargs.append(args.config.name)
+		subprocess.Popen(pargs)
+		# Wait for it...
+		time.sleep(2)
+		# Then try the command again. If it fails again, something we cannot
+		# fix is wrong
+		for i in inner():
+			yield i
 
 wah = False
 for l in send('ping'):
