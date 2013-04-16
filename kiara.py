@@ -3,10 +3,7 @@
 import os.path
 import sys
 import argparse
-
-import ed2khash
-import database
-import anidb
+import socket
 
 # Default confg values.
 config = {
@@ -15,7 +12,6 @@ config = {
 	'session': '~/.kiara.session',
 	'database': '~/.kiara.db',
 }
-anidb.config = config
 
 def config_items(file):
 	for line in map(lambda s: s.strip(), file.readlines()):
@@ -34,9 +30,6 @@ parser.add_argument('-o', '--organize',
 parser.add_argument('-c', '--config',
 	action='store', dest='config', type=argparse.FileType('r'),
 	help='Alternative config file to use.')
-parser.add_argument('-p', '--ping',
-	action='store_true', dest='ping',
-	help='Ping anidb')
 parser.add_argument('files',
 	metavar='FILE', type=argparse.FileType('rb'), nargs='*',
 	help='a file to do something with')
@@ -63,61 +56,35 @@ for key in 'host port user pass database session'.split():
 if config_err:
 	sys.exit(-1)
 
-# Connect the database.
-database.connect(os.path.expanduser(config['database']), config['user'])
+def send(msg):
+	client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+	client.connect(os.path.expanduser(config['session']))
+	client.sendall(bytes(msg, 'UTF-8'))
+	data = ''
+	while True:
+		data += str(client.recv(1024), 'UTF-8')
+		if data == '---end---':
+			client.close()
+			return
+		if '\n' in data:
+			item, data = data.split('\n', 1)
+			yield item
 
-# Define a dump object to pass around.
-class KiaraFile(object):
-	def __init__(self, file):
-		self.file = file
-		self.name = os.path.basename(file.name)
-		self.size = os.path.getsize(file.name)
-		
-		self.fid = None
-		self.mylist_id = None
-		
-		self.dirty = False # Should this be saved.
-		self.hash = None
-		self.added = False
-		self.watched = False
-	
-	def __str__(self):
-		parts = [self.name]
-		if self.hash:
-			parts.append(self.hash)
-		if self.dirty:
-			parts.append('(unsaved)')
-		return ' '.join(parts)
+wah = False
+for l in send('ping'):
+	print(l)
+	wah = l == 'pong'
+assert wah
 
 # OK, run over the files.
-files = [KiaraFile(file) for file in args.files]
-
-# Load the info we already have on that file and create the missing
-# stuff.
-if args.ping:
-	if anidb.ping():
-		print('Pinged anidb')
-	else:
-		print('No answer :(')
-		sys.exit(1)
-
-for file in files:
+for file in args.files:
 	# Load file info.
-	database.load(file)
-	if not file.hash:
-		print('Hashing', file.name)
-		file.hash = ed2khash.hash(file.file)
-		database.load(file)
-	
-	anidb.load_info(file)
-	
-	if not file.added:
-		anidb.add(file)
-	
-	if not file.watched and args.watch:
-		anidb.watch(file)
+	q = 'a'
+	if args.watch:
+		q += 'w'
 	
 	if args.organize:
-		print('TODO: organize', file)
+		q += 'o'
 	
-	database.save(file)
+	for line in send(q + ' ' + file.name):
+		print(line)

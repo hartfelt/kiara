@@ -11,6 +11,7 @@ LOGIN_ACCEPTED = '200'
 LOGIN_ACCEPTED_OUTDATED_CLIENT = '201'
 LOGGED_OUT = '203'
 MYLIST_ENTRY_ADDED = '210'
+FILE = '220'
 PONG = '300'
 FILE_ALREADY_IN_MYLIST = '310'
 MYLIST_ENTRY_EDITED = '311'
@@ -36,7 +37,7 @@ DIE_MESSAGES = [
 LATER_MESSAGES = [OUT_OF_SERVICE, SERVER_BUSY]
 REAUTH_MESSAGES = [LOGIN_FIRST, INVALID_SESSION]
 
-# This will get overridden from kiara.py
+# This will get overridden from kiarad.py
 config = None
 session_key = None
 sock = None
@@ -54,13 +55,14 @@ def _comm(command, **kwargs):
 	next_message = datetime.now() + message_interval
 	
 	# Send shit.
-	sock.send((command + " " + "&".join(
-		map(lambda k: "%s=%s" % (k, kwargs[k]), kwargs)
-	)).encode('ascii'))
+	shit = (command + " " + "&".join(
+		map(lambda k: "%s=%s" % (k, kwargs[k]), kwargs)))
+	print('-->', shit)
+	sock.send(shit.encode('ascii'))
 	
 	# Receive shit
 	reply = sock.recv(1400).decode().strip()
-	print('>>>', reply)
+	print('<--', reply)
 	if reply[0:3] == "555":
 		print("We got banned :(")
 		print(reply)
@@ -77,24 +79,19 @@ def _comm(command, **kwargs):
 	if code in REAUTH_MESSAGES:
 		print('We need to log in again (%s %s)' % (code, data))
 		session_key = None
-		_delete_session()
 		_connect()
 		return _comm(command, **kwargs)
 	return code, data
 
-def ping():
+def ping(redirect):
+	sys.stdout = redirect
 	_connect()
 	code, reply = _comm('PING', s=session_key)
 	if code == PONG:
 		return True
 	print('Unexpected reply to PING:', code, reply)
 	return False
-
-def _delete_session():
-	if os.path.isfile(os.path.expanduser(config['session'])):
-		os.remove(os.path.expanduser(config['session']))
-	else:
-		print('would have deleted session file, but it is gone')
+	sys.stdout = sys.__stdout__
 
 def _connect():
 	global session_key, sock
@@ -103,16 +100,6 @@ def _connect():
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		sock.connect((config['host'], int(config['port'])))
 		sock.settimeout(10)
-	
-	if not session_key:
-		# Load session key from file
-		try:
-			with open(os.path.expanduser(config['session']), 'r') as fp:
-				session_key = fp.read().strip()
-		except IOError:
-			pass
-		except Exception as e:
-			print('we caught exception:', type(e), repr(e), e)
 	
 	# If we have a session key, we assume that we are connected.
 	if not session_key:
@@ -148,20 +135,14 @@ def _connect():
 		
 		session_key = key.split()[0]
 		print("Login successful, we got session key %s" % session_key)
-	
-	# Save the session key for future use.
-	if session_key:
-		with open(os.path.expanduser(config['session']), 'w') as fp:
-			fp.write(session_key)
-	else:
-		_delete_session()
 
-def load_info(thing):
-	print('loading info')
+def load_info(thing, redirect):
+	sys.stdout = redirect
 	_connect()
+	
 	lookup = {
-		'fmask': '0808000000',
-		'amask': '80808040',
+		'fmask': '48080000a0',
+		'amask': '90808040',
 		's': session_key,
 	}
 	if thing.fid:
@@ -169,16 +150,64 @@ def load_info(thing):
 	else:
 		lookup['size'] = thing.size
 		lookup['ed2k'] = thing.hash
-		
-	print('lookup', lookup)
+	
 	code, reply = _comm('FILE', **lookup)
-	print(code, reply)
-	# fmask=0808000000 amask=80808040
+	if code == NO_SUCH_FILE:
+		print('File not found :(')
+	elif code == FILE:
+		parts = reply.split('\n')[1].split('|')
+		parts.reverse()
+		thing.fid = int(parts.pop())
+		thing.aid = int(parts.pop())
+		thing.mylist_id = int(parts.pop())
+		thing.crc31 = parts.pop()
+		thing.added = bool(int(parts.pop()))
+		thing.watched = bool(int(parts.pop()))
+		thing.anime_total_eps = int(parts.pop())
+		thing.anime_type = parts.pop()
+		thing.anime_name = parts.pop()
+		thing.ep_no = parts.pop()
+		thing.group_name = parts.pop()
+		thing.updated = datetime.now()
+		thing.dirty = True
+	
+	sys.stdout = sys.__stdout__
 
-def add(thing):
+def add(thing, redirect):
+	sys.stdout = redirect
 	_connect()
-	print('TODO: add', thing)
+	
+	code, reply = _comm('MYLISTADD',
+		fid=str(thing.fid),
+		state='1',
+		s=session_key)
+	if code == MYLIST_ENTRY_ADDED:
+		thing.mylist_id = reply.split('\n')[1]
+		thing.added = True
+		thing.dirty = True
+		print('File added')
+	elif code == FILE_ALREADY_IN_MYLIST:
+		thing.mylist_id = reply.split('\n')[1].split('|')[0]
+		thing.added = True
+		thing.dirty = True
+		print('File added')
+	else:
+		print('UNEXPECTED REPLY:', code, reply)
+	
+	sys.stdout = sys.__stdout__
 
-def watch(thing):
+def watch(thing, redirect):
+	sys.stdout = redirect
 	_connect()
-	print('TODO: watch', thing)
+	
+	code, reply = _comm('MYLISTADD',
+		lid=str(thing.mylist_id), s=session_key,
+		edit='1', state='1', viewed='1')
+	if code == MYLIST_ENTRY_EDITED:
+		thing.watched = True
+		thing.dirty = True
+		print('File marked watched')
+	else:
+		print('UNEXPECTED REPLY:', code, reply)
+	
+	sys.stdout = sys.__stdout__
