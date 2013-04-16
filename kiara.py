@@ -77,19 +77,22 @@ def send(msg):
 			yield i
 	except socket.error:
 		print('Unable to contact the backend. Will try to start one...')
-		pargs = [sys.executable, os.path.join(
-			os.path.dirname(os.path.abspath(__file__)),
-			'kiarad.py')]
-		if args.config:
-			pargs.append('-c')
-			pargs.append(args.config.name)
-		subprocess.Popen(pargs)
-		# Wait for it...
-		time.sleep(2)
-		# Then try the command again. If it fails again, something we cannot
-		# fix is wrong
-		for i in inner():
-			yield i
+		for path in sys.path:
+			candidate = os.path.join(path, 'kiarad.py')
+			if os.path.isfile(candidate):
+				pargs = [sys.executable, candidate]
+				if args.config:
+					pargs.append('-c')
+					pargs.append(args.config.name)
+				subprocess.Popen(pargs)
+				# Wait for it...
+				time.sleep(2)
+				# Then try the command again. If it fails again, something we
+				# cannot fix is wrong
+				for i in inner():
+					yield i
+				return
+		print('Unable to start a new backend, sorry :(')
 
 wah = False
 for l in send('ping'):
