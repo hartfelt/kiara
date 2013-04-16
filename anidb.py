@@ -160,7 +160,7 @@ def load_info(thing, redirect):
 		thing.fid = int(parts.pop())
 		thing.aid = int(parts.pop())
 		thing.mylist_id = int(parts.pop())
-		thing.crc31 = parts.pop()
+		thing.crc32 = parts.pop()
 		thing.added = bool(int(parts.pop()))
 		thing.watched = bool(int(parts.pop()))
 		thing.anime_total_eps = int(parts.pop())
