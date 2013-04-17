@@ -2,6 +2,7 @@
 
 import os.path
 import sys
+import shutil
 import argparse
 from datetime import datetime, timedelta
 import socketserver
@@ -46,7 +47,8 @@ if args.config:
 	config.update(config_items(args.config))
 
 config_err = False
-for key in 'host port user pass database session'.split():
+for key in 'host port user pass database session ' \
+		'basepath_movie basepath_series'.split():
 	if not key in config:
 		print('ERROR: Missing config variable:', key)
 		config_err = True
@@ -103,6 +105,22 @@ class KiaraFile(object):
 			parts.append('(unsaved)')
 		return ' '.join(parts)
 
+def rmdirp(path):
+	while path:
+		if os.listdir(path) == []:
+			yield 'The dir ' + path + ' is now empty, will remove it'
+			os.rmdir(path)
+			path = os.path.dirname(path)
+		else:
+			return
+	
+def pad(length, num):
+	try:
+		int(num)
+		return "0" * max(0, (length - len(num))) + num
+	except ValueError:
+		return num
+
 class Handler(socketserver.BaseRequestHandler):
 	def reply(self, message):
 		self.write(message + '\n')
@@ -110,44 +128,95 @@ class Handler(socketserver.BaseRequestHandler):
 	def write(self, message):
 		self.request.send(bytes(message, 'UTF-8'))
 	
+	def exit(self, status):
+		self.request.sendall(bytes('---end---', 'UTF-8'))
+		sys.exit(status)
+	
 	def handle(self):
 		data = self.request.recv(1024).strip().decode('UTF-8')
 		
-		if data == 'ping':
-			if anidb.ping(self):
-				self.reply('pong')
-			else:
-				self.reply('No answer :(')
-				sys.exit(1)
+		act, file_name = data.split(' ', 1)
+		if act == '-':
+			# Non-file related commands
+			if file_name == 'ping':
+				if anidb.ping(self):
+					self.reply('pong')
+				else:
+					self.reply('No answer :(')
+					self.exit(1)
+			if file_name == 'quit':
+				self.reply('shutting down the backend')
+				self.exit(0)
 		
 		else:
-			act, file = data.split(' ', 1)
-			file = KiaraFile(file)
-			
-			# Load file info.
-			database.load(file)
-			if not file.hash:
-				self.reply('Hashing ' + file.name)
-				file.hash = ed2khash.hash(file.file)
+			try:
+				# File related commands
+				file = KiaraFile(file_name)
+				
+				# Load file info.
 				database.load(file)
-			
-			if file.misses_info() or \
-					file.updated < datetime.now() - timedelta(days=7):
-				anidb.load_info(file, self)
-			
-			if not file.fid:
-				print('!!! File is unknown to anidb. Will not process further')
-			else:
-				if (not file.added) and 'a' in act:
-					anidb.add(file, self)
+				if not file.hash:
+					self.reply('Hashing ' + file.name)
+					file.hash = ed2khash.hash(file.file)
+					database.load(file)
 				
-				if not file.watched and 'w' in act:
-					anidb.watch(file, self)
+				if file.misses_info() or \
+						file.updated < datetime.now() - timedelta(days=7):
+					anidb.load_info(file, self)
 				
-				if 'o' in act:
-					self.reply('TODO: organize ' + str(file))
-				
-				database.save(file)
+				if not file.fid:
+					self.reply('!!! File is unknown to anidb. '
+						'Will not process further')
+				else:
+					if (not file.added) and 'a' in act:
+						anidb.add(file, self)
+					
+					if not file.watched and 'w' in act:
+						anidb.watch(file, self)
+					
+					if 'o' in act:
+						dir = os.path.join(os.path.expanduser((
+							config['basepath_movie']
+							if file.anime_type in ['Movie']
+							else config['basepath_series'])), file.anime_name)
+						self.reply('Type is ' + file.anime_type +
+							', so I\'ll put this in ' + dir)
+						
+						os.makedirs(os.path.normpath(dir), exist_ok=True)
+						new_name = None
+						if file.anime_total_eps == "1":
+							new_name = "[%s] %s [%s]%s" % (
+								file.group_name, file.anime_name, file.crc32,
+								os.path.splitext(file_name)[1])
+						else:
+							new_name = "[%s] %s - %s [%s]%s" % (
+								file.group_name, file.anime_name,
+								pad(
+									len(str(file.anime_total_eps)),
+									str(file.ep_no)),
+								file.crc32, os.path.splitext(file_name)[1])
+						new_path = os.path.join(dir, new_name)
+
+						if file_name == new_path:
+							self.reply(new_name + ' is already organized')
+						else:
+							if os.path.isfile(new_path):
+								self.reply('!!! ' + new_path +
+									' already existst, not overwriting')
+							else:
+								shutil.move(file_name, new_path)
+								self.reply('Moved ' + file_name +
+									' to ' + new_path)
+								file.name = new_name
+								file.dirty = True
+						
+							for r in rmdirp(os.path.dirname(file_name)):
+								self.reply(r)
+						
+					database.save(file)
+			except SystemExit as e:
+				self.reply('wawa')
+				self.exit(e.code)
 			
 		self.request.sendall(bytes('---end---', 'UTF-8'))
 

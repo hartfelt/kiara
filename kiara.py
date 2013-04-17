@@ -32,6 +32,9 @@ parser.add_argument('-o', '--organize',
 parser.add_argument('-c', '--config',
 	action='store', dest='config', type=argparse.FileType('r'),
 	help='Alternative config file to use.')
+parser.add_argument('-q', '--quit',
+	action='store_true', dest='kill_backend',
+	help='Kill the backend')
 parser.add_argument('files',
 	metavar='FILE', type=argparse.FileType('rb'), nargs='*',
 	help='a file to do something with')
@@ -51,7 +54,8 @@ if args.config:
 	config.update(config_items(args.config))
 
 config_err = False
-for key in 'host port user pass database session'.split():
+for key in 'host port user pass database session ' \
+		'basepath_movie basepath_series'.split():
 	if not key in config:
 		print('ERROR: Missing config variable:', key)
 		config_err = True
@@ -94,8 +98,13 @@ def send(msg):
 				return
 		print('Unable to start a new backend, sorry :(')
 
+if args.kill_backend and not args.files:
+	for l in send('- kill'):
+		print(l)
+	sys.exit()
+
 wah = False
-for l in send('ping'):
+for l in send('- ping'):
 	print(l)
 	wah = l == 'pong'
 assert wah
@@ -110,5 +119,9 @@ for file in args.files:
 	if args.organize:
 		q += 'o'
 	
-	for line in send(q + ' ' + file.name):
+	for line in send(q + ' ' + os.path.abspath(file.name)):
 		print(line)
+
+if args.kill_backend:
+	for l in send('- kill'):
+		print(l)
