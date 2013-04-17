@@ -37,7 +37,7 @@ def connect(database, user):
 		CREATE TABLE IF NOT EXISTS anime (
 			aid integer,
 			total_eps integer,
-			name integer,
+			name string,
 			type string,
 			updated string
 		);
@@ -146,7 +146,7 @@ def save(thing):
 			INSERT INTO anime (aid, total_eps, name, type, updated)
 			VALUES (?, ?, ?, ?, ?)
 		''', (
-			thing.aid, thing.anime_total_eps, thing.anime_type,
-			thing.anime_name, str(thing.updated)))
+			thing.aid, thing.anime_total_eps, thing.anime_name,
+			thing.anime_type, str(thing.updated)))
 		
 		conn.commit()
