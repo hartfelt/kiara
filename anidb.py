@@ -57,7 +57,7 @@ def _comm(command, **kwargs):
 	# Send shit.
 	shit = (command + " " + "&".join(
 		map(lambda k: "%s=%s" % (k, kwargs[k]), kwargs)))
-	print('-->', shit)
+	print('-->', (shit if command is not 'AUTH' else 'AUTH (hidden)'))
 	sock.send(shit.encode('ascii'))
 	
 	# Receive shit
