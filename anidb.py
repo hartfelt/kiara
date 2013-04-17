@@ -57,12 +57,14 @@ def _comm(command, **kwargs):
 	# Send shit.
 	shit = (command + " " + "&".join(
 		map(lambda k: "%s=%s" % (k, kwargs[k]), kwargs)))
-	print('-->', (shit if command is not 'AUTH' else 'AUTH (hidden)'))
+	if 'debug' in config:
+		print('-->', (shit if command is not 'AUTH' else 'AUTH (hidden)'))
 	sock.send(shit.encode('ascii'))
 	
 	# Receive shit
 	reply = sock.recv(1400).decode().strip()
-	print('<--', reply)
+	if 'debug' in config:
+		print('<--', reply)
 	if reply[0:3] == "555":
 		print("We got banned :(")
 		print(reply)
