@@ -18,10 +18,10 @@ def connect(database, user):
 			size integer,
 			fid integer,
 			aid integer,
-			crc32 string,
-			ep_no string,
-			group_name string,
-			updated string
+			crc32 text,
+			ep_no text,
+			group_name text,
+			updated text
 		)
 	''')
 	c.execute('''
@@ -30,16 +30,16 @@ def connect(database, user):
 			username text,
 			watched boolean,
 			mylist_id integer,
-			updated string
+			updated text
 		);
 	''')
 	c.execute('''
 		CREATE TABLE IF NOT EXISTS anime (
 			aid integer,
 			total_eps integer,
-			name string,
-			type string,
-			updated string
+			name text,
+			type text,
+			updated text
 		);
 	''')
 	conn.commit()
