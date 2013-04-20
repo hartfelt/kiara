@@ -42,7 +42,10 @@ config = None
 session_key = None
 sock = None
 
-message_interval = timedelta(seconds=4)
+# anidb specifies a hard limit that no more than one message every 2 seconds
+# may me send, and a soft one at one message every 4 seconds over an 'extended
+# period'. 3 seconds is... faster than 4...
+message_interval = timedelta(seconds=3)
 next_message = datetime.now()
 
 def _comm(command, **kwargs):
@@ -62,14 +65,27 @@ def _comm(command, **kwargs):
 	sock.send(shit.encode('ascii'))
 	
 	# Receive shit
-	reply = sock.recv(1400).decode().strip()
+	try:
+		reply = sock.recv(1400).decode().strip()
+	except socket.timeout:
+		# Wait...
+		print('We got a socket timeout... hang on')
+		time.sleep(10)
+		try:
+			reply = sock.recv(1400).decode().strip()
+		except socket.timeout:
+			# Retry it only once. If this fails, anidb is either broken, or
+			# blocking us
+			print('Another timeout... bailing out')
+			sys.exit(0)
+	
 	if 'debug' in config:
 		print('<--', reply)
 	if reply[0:3] == "555":
 		print("We got banned :(")
 		print(reply)
 		print("Try again in 30 minutes")
-		sys.exit(-2)
+		sys.exit(0)
 	
 	code, data = reply.split(' ', 1)
 	if code in DIE_MESSAGES:
@@ -80,8 +96,7 @@ def _comm(command, **kwargs):
 		sys.exit(-1)
 	if code in REAUTH_MESSAGES:
 		print('We need to log in again (%s %s)' % (code, data))
-		session_key = None
-		_connect()
+		_connect(force=True)
 		return _comm(command, **kwargs)
 	return code, data
 
@@ -95,7 +110,7 @@ def ping(redirect):
 	return False
 	sys.stdout = sys.__stdout__
 
-def _connect():
+def _connect(force=False):
 	global session_key, sock
 	
 	if not sock:
@@ -104,7 +119,7 @@ def _connect():
 		sock.settimeout(10)
 	
 	# If we have a session key, we assume that we are connected.
-	if not session_key:
+	if (not session_key) or force:
 		print('Logging in')
 		code, key = _comm(
 			'AUTH',
@@ -163,8 +178,8 @@ def load_info(thing, redirect):
 		thing.aid = int(parts.pop())
 		thing.mylist_id = int(parts.pop())
 		thing.crc32 = parts.pop()
-		thing.added = bool(int(parts.pop()))
-		thing.watched = bool(int(parts.pop()))
+		thing.added = parts.pop() == '1'
+		thing.watched = parts.pop() == '1'
 		thing.anime_total_eps = int(parts.pop())
 		thing.anime_type = parts.pop()
 		thing.anime_name = parts.pop()
