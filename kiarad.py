@@ -97,6 +97,12 @@ class KiaraFile(object):
 			self.ep_no == None or
 			self.group_name == None)
 	
+	def is_movie(self):
+		return (
+			self.anime_type == 'Movie' or
+			self.anime_type == 'OVA' and self.anime_total_eps == 1 or
+			self.anime_type == 'Web' and self.anime_total_eps == 1)
+	
 	def __str__(self):
 		parts = [self.name]
 		if self.hash:
@@ -175,22 +181,24 @@ class Handler(socketserver.BaseRequestHandler):
 						anidb.watch(file, self)
 					
 					if 'o' in act:
+						anime_name = file.anime_name.replace('/', '_')
 						dir = os.path.join(os.path.expanduser((
 							config['basepath_movie']
-							if file.anime_type in ['Movie']
-							else config['basepath_series'])), file.anime_name)
-						self.reply('Type is ' + file.anime_type +
-							', so I\'ll put this in ' + dir)
+							if file.is_movie()
+							else config['basepath_series'])), anime_name)
+						if config['debug']:
+							self.reply('Type is ' + file.anime_type +
+								', so I\'ll put this in ' + dir)
 						
 						os.makedirs(os.path.normpath(dir), exist_ok=True)
 						new_name = None
 						if file.anime_total_eps == "1":
 							new_name = "[%s] %s [%s]%s" % (
-								file.group_name, file.anime_name, file.crc32,
+								file.group_name, anime_name, file.crc32,
 								os.path.splitext(file_name)[1])
 						else:
 							new_name = "[%s] %s - %s [%s]%s" % (
-								file.group_name, file.anime_name,
+								file.group_name, anime_name,
 								pad(
 									len(str(file.anime_total_eps)),
 									str(file.ep_no)),

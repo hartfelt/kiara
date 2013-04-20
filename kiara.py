@@ -63,6 +63,7 @@ if config_err:
 	sys.exit(-1)
 
 def send(msg):
+	print()
 	def inner():
 		client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 		client.connect(os.path.expanduser(config['session']))
