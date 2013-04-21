@@ -1,12 +1,13 @@
 import sqlite3
 from datetime import datetime
 
-conn, username = None, None
+conn, username, db = None, None, None
 
 def connect(database, user):
-	global conn, username
+	global conn, username, db
 	conn = sqlite3.connect(database)
 	username = user
+	db = database # For reconnecting;
 	
 	c = conn.cursor()
 	
@@ -44,7 +45,18 @@ def connect(database, user):
 	''')
 	conn.commit()
 
+def _check_connection():
+	c = conn.cursor()
+	try:
+		c.execute('select 1 from file')
+		c.fetchall()
+	except sqlite3.OperationalError:
+		print('reconnecting to database')
+		conn.close()
+		connect(db, username)
+
 def load(thing):
+	_check_connection()
 	c = conn.cursor()
 	
 	# Lookup thing by name
@@ -110,6 +122,7 @@ def load(thing):
 				datetime.strptime(r[3], '%Y-%m-%d %H:%M:%S.%f'))
 
 def save(thing):
+	_check_connection()
 	if thing.dirty:
 		c = conn.cursor()
 		c.execute('''
