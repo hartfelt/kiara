@@ -186,7 +186,7 @@ class Handler(socketserver.BaseRequestHandler):
 							config['basepath_movie']
 							if file.is_movie()
 							else config['basepath_series'])), anime_name)
-						if config['debug']:
+						if 'debug' in config:
 							self.reply('Type is ' + file.anime_type +
 								', so I\'ll put this in ' + dir)
 						
@@ -204,7 +204,7 @@ class Handler(socketserver.BaseRequestHandler):
 									str(file.ep_no)),
 								file.crc32, os.path.splitext(file_name)[1])
 						new_path = os.path.join(dir, new_name)
-
+						
 						if file_name == new_path:
 							self.reply(new_name + ' is already organized')
 						else:
