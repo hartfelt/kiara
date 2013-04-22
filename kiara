@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+
+import argparse
+import os.path
+import sys
+import libkiara
+
+parser = argparse.ArgumentParser(
+	description='Do stuff with anime files and anidb.')
+parser.add_argument('-w', '--watch',
+	action='store_true', dest='watch',
+	help='Mark all the files watched.')
+parser.add_argument('-o', '--organize',
+	action='store_true', dest='organize',
+	help='Organize ALL THE FILES _o/')
+parser.add_argument('-c', '--config',
+	action='store', dest='config', type=argparse.FileType('r'),
+	help='Alternative config file to use.')
+parser.add_argument('files',
+	metavar='FILE', type=argparse.FileType('rb'), nargs='*',
+	help='a file to do something with')
+
+args = parser.parse_args()
+
+if args.config:
+	libkiara.load_config_file(args.config.name)
+if not libkiara.check_config():
+	sys.exit(-1)
+
+assert libkiara.ping()
+
+# OK, run over the files.
+for file in args.files:
+	libkiara.process(os.path.abspath(file.name), args.watch, args.organize)

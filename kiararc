@@ -1,0 +1,25 @@
+### Default configuration file for kiara.py
+# Copy this to ~/.kiararc and change to your needs
+
+### Your anidb login
+#user johndoe
+#pass secretpasswordinplaintextomg
+
+### Base paths for the organize-option
+# If you don't want to distinguish between movies and series, just set the
+# same path for both.
+#basepath_movie ~/anime/movies
+#basepath_series ~/anime/series
+
+### Optional settings
+# Where should kiara cache file meta-data?
+# It is safe to share this path with multible users.
+#database ~/.kiara.db
+
+# Location of the socket that's used to communicate with the backend
+#session ~/.kiara.session
+
+# The anidb api endpoint. This is configurable as per anidb recommandations,
+# though there should be no reason to change this.
+#host api.anidb.net
+#port 9000

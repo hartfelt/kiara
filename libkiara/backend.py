@@ -1,13 +1,9 @@
 import os.path
 import sys
 import shutil
-import argparse
 from datetime import datetime, timedelta
 import socketserver
-
-import ed2khash
-import database
-import anidb
+from libkiara import ed2khash, database, anidb
 
 config = {}
 

@@ -2,7 +2,6 @@
 
 import os, os.path
 import sys
-import argparse
 import socket
 import time
 
@@ -26,7 +25,7 @@ def load_config_file(file_name):
 		with open(file_name, 'r') as fp:
 			config.update(_config_items(fp))
 	except: pass
-load_config_file('/etc/kiara.rc')
+load_config_file('/etc/kiararc')
 load_config_file(os.path.expanduser('~/.kiararc'))
 
 def check_config():
@@ -68,7 +67,7 @@ def _send(msg):
 			return
 			print('Unable to start a new backend, sorry :(')
 		else:
-			import backend
+			from libkiara import backend
 			backend.serve(config)
 
 def ping():
@@ -87,32 +86,3 @@ def process(file, watch=False, organize=False):
 	
 	for line in _send(q + ' ' + file):
 		print(line)
-
-if __name__ == '__main__':
-	parser = argparse.ArgumentParser(
-		description='Do stuff with anime files and anidb.')
-	parser.add_argument('-w', '--watch',
-		action='store_true', dest='watch',
-		help='Mark all the files watched.')
-	parser.add_argument('-o', '--organize',
-		action='store_true', dest='organize',
-		help='Organize ALL THE FILES _o/')
-	parser.add_argument('-c', '--config',
-		action='store', dest='config', type=argparse.FileType('r'),
-		help='Alternative config file to use.')
-	parser.add_argument('files',
-		metavar='FILE', type=argparse.FileType('rb'), nargs='*',
-		help='a file to do something with')
-
-	args = parser.parse_args()
-
-	if args.config:
-		load_config_file(args.config.name)
-	if not check_config():
-		sys.exit(-1)
-	
-	assert ping()
-	
-	# OK, run over the files.
-	for file in args.files:
-		process(os.path.abspath(file.name), args.watch, args.organize)
