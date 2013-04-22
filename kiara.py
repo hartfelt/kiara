@@ -2,7 +2,6 @@
 
 import os, os.path
 import sys
-import subprocess
 import argparse
 import socket
 import time
@@ -59,22 +58,18 @@ def _send(msg):
 			yield i
 	except socket.error:
 		print('Unable to contact the backend. Will try to start one...')
-		for path in sys.path:
-			candidate = os.path.join(path, 'kiarad.py')
-			if os.path.isfile(candidate):
-				pargs = [sys.executable, candidate]
-				if args.config:
-					pargs.append('-c')
-					pargs.append(args.config.name)
-				subprocess.Popen(pargs)
-				# Wait for it...
-				time.sleep(2)
-				# Then try the command again. If it fails again, something we
-				# cannot fix is wrong
-				for i in inner():
-					yield i
-				return
-		print('Unable to start a new backend, sorry :(')
+		if os.fork():
+			# Wait for it...
+			time.sleep(2)
+			# Then try the command again. If it fails again, something we
+			# cannot fix is wrong
+			for i in inner():
+				yield i
+			return
+			print('Unable to start a new backend, sorry :(')
+		else:
+			import kiarad
+			kiarad.serve(config)
 
 def ping():
 	wah = False

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os.path
 import sys
 import shutil
@@ -11,52 +9,7 @@ import ed2khash
 import database
 import anidb
 
-# Default confg values.
-config = {
-	'host': 'api.anidb.net',
-	'port': '9000',
-	'session': '~/.kiara.session',
-	'database': '~/.kiara.db',
-}
-anidb.config = config
-
-def config_items(file):
-	for line in map(lambda s: s.strip(), file.readlines()):
-		if line.startswith('#') or not line:
-			continue
-		yield line.split(None, 1)
-
-parser = argparse.ArgumentParser(
-	description='Kiara backend')
-parser.add_argument('-c', '--config',
-	action='store', dest='config', type=argparse.FileType('r'),
-	help='Alternative config file to use.')
-
-args = parser.parse_args()
-
-# Read config.
-try:
-	with open('/etc/kiararc', 'rb') as fp:
-		config.update(config_items(fp))
-except: pass
-try:
-	with open(os.path.expanduser('~/.kiararc'), 'r') as fp:
-		config.update(config_items(fp))
-except: pass
-if args.config:
-	config.update(config_items(args.config))
-
-config_err = False
-for key in 'host port user pass database session ' \
-		'basepath_movie basepath_series'.split():
-	if not key in config:
-		print('ERROR: Missing config variable:', key)
-		config_err = True
-if config_err:
-	sys.exit(-1)
-
-# Connect the database.
-database.connect(os.path.expanduser(config['database']), config['user'])
+config = {}
 
 # Define a dump object to pass around.
 class KiaraFile(object):
@@ -238,8 +191,14 @@ class Handler(socketserver.BaseRequestHandler):
 			
 		self.request.sendall(bytes('---end---', 'UTF-8'))
 
-try:
-	os.remove(os.path.expanduser(config['session']))
-except: pass
-socketserver.UnixStreamServer(
-	os.path.expanduser(config['session']), Handler).serve_forever()
+def serve(cfg):
+	global config
+	config = cfg
+	anidb.config = config
+	database.connect(os.path.expanduser(config['database']), config['user'])
+	
+	try:
+		os.remove(os.path.expanduser(config['session']))
+	except: pass
+	socketserver.UnixStreamServer(
+		os.path.expanduser(config['session']), Handler).serve_forever()
