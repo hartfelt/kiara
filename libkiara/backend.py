@@ -3,6 +3,7 @@ import sys
 import shutil
 from datetime import datetime, timedelta
 import socketserver
+import socket # for the exceptions
 from libkiara import ed2khash, database, anidb
 
 config = {}

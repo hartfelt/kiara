@@ -147,7 +147,7 @@ def _connect(force=False):
 				"Unexpected return code to AUTH command. Please show " +
 				"this to the delevopers of kiara:"
 			)
-			print(code, reply)
+			print(code, key)
 			sys.exit()
 		
 		session_key = key.split()[0]
