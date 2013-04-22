@@ -68,8 +68,8 @@ def _send(msg):
 			return
 			print('Unable to start a new backend, sorry :(')
 		else:
-			import kiarad
-			kiarad.serve(config)
+			import backend
+			backend.serve(config)
 
 def ping():
 	wah = False
