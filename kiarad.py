@@ -128,17 +128,27 @@ def pad(length, num):
 		return num
 
 class Handler(socketserver.BaseRequestHandler):
-	def reply(self, message):
-		self.write(message + '\n')
+	def __init__(self, *args, **kwargs):
+		self.queued_messages = []
+		return super().__init__(*args, **kwargs)
 	
-	def write(self, message):
-		self.request.send(bytes(message, 'UTF-8'))
+	def reply(self, message, catch_fails=True):
+		self.write(message + '\n', catch_fails)
+	
+	def write(self, message, catch_fails=True):
+		try:
+			self.request.send(bytes(message, 'UTF-8'))
+		except socket.error:
+			if catch_fails:
+				self.queued_messages.append(message)
 	
 	def exit(self, status):
 		self.request.sendall(bytes('---end---', 'UTF-8'))
 		sys.exit(status)
 	
 	def handle(self):
+		while self.queued_messages:
+			self.reply(self.queued_messages.pop(0), False)
 		data = self.request.recv(1024).strip().decode('UTF-8')
 		
 		act, file_name = data.split(' ', 1)
