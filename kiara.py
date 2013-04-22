@@ -7,7 +7,7 @@ import argparse
 import socket
 import time
 
-# Default confg values.
+# Default config values.
 config = {
 	'host': 'api.anidb.net',
 	'port': '9000',
@@ -15,54 +15,31 @@ config = {
 	'database': '~/.kiara.db',
 }
 
-def config_items(file):
+def _config_items(file):
 	for line in map(lambda s: s.strip(), file.readlines()):
 		if line.startswith('#') or not line:
 			continue
 		yield line.split(None, 1)
 
-parser = argparse.ArgumentParser(
-	description='Do stuff with anime files and anidb.')
-parser.add_argument('-w', '--watch',
-	action='store_true', dest='watch',
-	help='Mark all the files watched.')
-parser.add_argument('-o', '--organize',
-	action='store_true', dest='organize',
-	help='Organize ALL THE FILES _o/')
-parser.add_argument('-c', '--config',
-	action='store', dest='config', type=argparse.FileType('r'),
-	help='Alternative config file to use.')
-parser.add_argument('-q', '--quit',
-	action='store_true', dest='kill_backend',
-	help='Kill the backend')
-parser.add_argument('files',
-	metavar='FILE', type=argparse.FileType('rb'), nargs='*',
-	help='a file to do something with')
+def load_config_file(file_name):
+	global config
+	try:
+		with open(file_name, 'r') as fp:
+			config.update(_config_items(fp))
+	except: pass
+load_config_file('/etc/kiara.rc')
+load_config_file(os.path.expanduser('~/.kiararc'))
 
-args = parser.parse_args()
-
-# Read config.
-try:
-	with open('/etc/kiararc', 'r') as fp:
-		config.update(config_items(fp))
-except: pass
-try:
-	with open(os.path.expanduser('~/.kiararc'), 'r') as fp:
-		config.update(config_items(fp))
-except: pass
-if args.config:
-	config.update(config_items(args.config))
-
-config_err = False
-for key in 'host port user pass database session ' \
+def check_config():
+	config_ok = True
+	for key in 'host port user pass database session ' \
 		'basepath_movie basepath_series'.split():
-	if not key in config:
-		print('ERROR: Missing config variable:', key)
-		config_err = True
-if config_err:
-	sys.exit(-1)
+		if not key in config:
+			print('ERROR: Missing config variable:', key, file=sys.stderr)
+			config_ok = False
+	return config_ok
 
-def send(msg):
+def _send(msg):
 	print()
 	def inner():
 		client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -99,30 +76,48 @@ def send(msg):
 				return
 		print('Unable to start a new backend, sorry :(')
 
-if args.kill_backend and not args.files:
-	for l in send('- kill'):
+def ping():
+	wah = False
+	for l in _send('- ping'):
 		print(l)
-	sys.exit()
+		wah = l == 'pong'
+	return wah
 
-wah = False
-for l in send('- ping'):
-	print(l)
-	wah = l == 'pong'
-assert wah
-
-# OK, run over the files.
-for file in args.files:
-	# Load file info.
+def process(file, watch=False, organize=False):
 	q = 'a'
-	if args.watch:
+	if watch:
 		q += 'w'
-	
-	if args.organize:
+	if organize:
 		q += 'o'
 	
-	for line in send(q + ' ' + os.path.abspath(file.name)):
+	for line in _send(q + ' ' + file):
 		print(line)
 
-if args.kill_backend:
-	for l in send('- kill'):
-		print(l)
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser(
+		description='Do stuff with anime files and anidb.')
+	parser.add_argument('-w', '--watch',
+		action='store_true', dest='watch',
+		help='Mark all the files watched.')
+	parser.add_argument('-o', '--organize',
+		action='store_true', dest='organize',
+		help='Organize ALL THE FILES _o/')
+	parser.add_argument('-c', '--config',
+		action='store', dest='config', type=argparse.FileType('r'),
+		help='Alternative config file to use.')
+	parser.add_argument('files',
+		metavar='FILE', type=argparse.FileType('rb'), nargs='*',
+		help='a file to do something with')
+
+	args = parser.parse_args()
+
+	if args.config:
+		load_config_file(args.config.name)
+	if not check_config():
+		sys.exit(-1)
+	
+	assert ping()
+	
+	# OK, run over the files.
+	for file in args.files:
+		process(os.path.abspath(file.name), args.watch, args.organize)
