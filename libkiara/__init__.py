@@ -5,6 +5,10 @@ import sys
 import socket
 import time
 
+# Used to gracefully aborting stuff.. like a hippo exiting a stage
+class AbandonShip(BaseException):
+	pass
+
 # Default config values.
 config = {
 	'host': 'api.anidb.net',

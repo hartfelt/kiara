@@ -1,5 +1,8 @@
-Kiara howto
-===========
+Kiara
+=====
+
+Kiara will hash your anime and add the episode to your anidb mylist.
+It will also mark those files watched, and organize them nicely in folders.
 
 Requirements
 ------------

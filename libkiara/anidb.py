@@ -1,7 +1,11 @@
-import socket
-import os, sys
 from datetime import datetime, timedelta
+import os
+import random
+import socket
+import string
+import sys
 import time
+from libkiara import AbandonShip
 
 CLIENT_NAME = "kiara"
 CLIENT_VERSION = "4"
@@ -48,6 +52,13 @@ sock = None
 message_interval = timedelta(seconds=3)
 next_message = datetime.now()
 
+def tag_gen(length=5):
+	""" Makes random strings for use as tags, so messages from anidb will not
+	get mixed up. """
+	return "".join([
+		random.choice(string.ascii_letters)
+		for _ in range(length)])
+
 def _comm(command, **kwargs):
 	global next_message, session_key
 	assert sock != None
@@ -58,6 +69,8 @@ def _comm(command, **kwargs):
 	next_message = datetime.now() + message_interval
 	
 	# Send shit.
+	tag = tag_gen()
+	kwargs['tag'] = tag
 	shit = (command + " " + "&".join(
 		map(lambda k: "%s=%s" % (k, kwargs[k]), kwargs)))
 	if 'debug' in config:
@@ -77,23 +90,27 @@ def _comm(command, **kwargs):
 			# Retry it only once. If this fails, anidb is either broken, or
 			# blocking us
 			print('Another timeout... bailing out')
-			sys.exit(0)
+			raise AbandonShip
 	
 	if 'debug' in config:
 		print('<--', reply)
-	if reply[0:3] == "555":
+	if reply[0:3] == "555" or reply[6:9] == '555':
 		print("We got banned :(")
 		print(reply)
 		print("Try again in 30 minutes")
-		sys.exit(0)
+		raise AbandonShip
 	
-	code, data = reply.split(' ', 1)
+	return_tag, code, data = reply.split(' ', 2)
+	
+	# In my next life, I'll handle this better
+	assert return_tag == tag
+	
 	if code in DIE_MESSAGES:
 		print("OH NOES", code, data)
-		sys.exit(-1)
+		raise AbandonShip
 	if code in LATER_MESSAGES:
 		print("AniDB is busy, please try again later")
-		sys.exit(-1)
+		raise AbandonShip
 	if code in REAUTH_MESSAGES:
 		print('We need to log in again (%s %s)' % (code, data))
 		_connect(force=True)
@@ -137,7 +154,7 @@ def _connect(force=False):
 		elif code in CLIENT_VERSION_OUTDATED:
 			print("kiara have become outdated :(")
 			print("check the interwebs for an updated version")
-			sys.exit()
+			raise AbandonShip
 		elif code in CLIENT_BANNED:
 			print("kiara is banned from AniDB :(")
 			print("(Your AniDB user should be ok)")
@@ -148,7 +165,7 @@ def _connect(force=False):
 				"this to the delevopers of kiara:"
 			)
 			print(code, key)
-			sys.exit()
+			raise AbandonShip
 		
 		session_key = key.split()[0]
 		print("Login successful, we got session key %s" % session_key)

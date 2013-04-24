@@ -4,7 +4,7 @@ import shutil
 from datetime import datetime, timedelta
 import socketserver
 import socket # for the exceptions
-from libkiara import ed2khash, database, anidb
+from libkiara import ed2khash, database, anidb, AbandonShip
 
 config = {}
 
@@ -92,10 +92,6 @@ class Handler(socketserver.BaseRequestHandler):
 			if catch_fails:
 				self.queued_messages.append(message)
 	
-	def exit(self, status):
-		self.request.sendall(bytes('---end---', 'UTF-8'))
-		sys.exit(status)
-	
 	def handle(self):
 		while self.queued_messages:
 			self.reply(self.queued_messages.pop(0), False)
@@ -109,10 +105,6 @@ class Handler(socketserver.BaseRequestHandler):
 					self.reply('pong')
 				else:
 					self.reply('No answer :(')
-					self.exit(1)
-			if file_name == 'quit':
-				self.reply('shutting down the backend')
-				self.exit(0)
 		
 		else:
 			try:
@@ -183,8 +175,13 @@ class Handler(socketserver.BaseRequestHandler):
 						
 					database.save(file)
 			except SystemExit as e:
-				self.reply('wawa')
-				self.exit(e.code)
+				self.request.sendall(bytes('---end---', 'UTF-8'))
+				self.request.close()
+				sys.exit(status)
+				
+			except AbandonShip:
+				self.reply('well... something went wrong')
+				# Ignore the actual error, the connection will be closed now
 			
 		self.request.sendall(bytes('---end---', 'UTF-8'))
 
