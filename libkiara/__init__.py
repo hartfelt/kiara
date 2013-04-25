@@ -10,7 +10,7 @@ class AbandonShip(BaseException):
 	pass
 
 # Default config values.
-config = {
+_config = {
 	'host': 'api.anidb.net',
 	'port': '9000',
 	'session': '~/.kiara.session',
@@ -24,10 +24,10 @@ def _config_items(file):
 		yield line.split(None, 1)
 
 def load_config_file(file_name):
-	global config
+	global _config
 	try:
 		with open(file_name, 'r') as fp:
-			config.update(_config_items(fp))
+			_config.update(_config_items(fp))
 	except: pass
 load_config_file('/etc/kiararc')
 load_config_file(os.path.expanduser('~/.kiararc'))
@@ -36,7 +36,7 @@ def check_config():
 	config_ok = True
 	for key in 'host port user pass database session ' \
 		'basepath_movie basepath_series'.split():
-		if not key in config:
+		if not key in _config:
 			print('ERROR: Missing config variable:', key, file=sys.stderr)
 			config_ok = False
 	return config_ok
@@ -45,7 +45,7 @@ def _send(msg):
 	print()
 	def inner():
 		client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-		client.connect(os.path.expanduser(config['session']))
+		client.connect(os.path.expanduser(_config['session']))
 		client.sendall(bytes(msg, 'UTF-8'))
 		data = ''
 		while True:
@@ -72,7 +72,7 @@ def _send(msg):
 			print('Unable to start a new backend, sorry :(')
 		else:
 			from libkiara import backend
-			backend.serve(config)
+			backend.serve(_config)
 
 def ping():
 	wah = False
