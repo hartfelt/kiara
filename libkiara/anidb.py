@@ -68,9 +68,13 @@ def _comm(command, **kwargs):
 		time.sleep(wait)
 	next_message = datetime.now() + message_interval
 	
-	# Send shit.
+	# Add a tag
 	tag = tag_gen()
 	kwargs['tag'] = tag
+	# And the session key, if we have one
+	if session_key:
+		kwargs['s'] = session_key
+	# Send shit.
 	shit = (command + " " + "&".join(
 		map(lambda k: "%s=%s" % (k, kwargs[k]), kwargs)))
 	if 'debug' in config:
@@ -78,32 +82,36 @@ def _comm(command, **kwargs):
 	sock.send(shit.encode('ascii'))
 	
 	# Receive shit
-	try:
-		reply = sock.recv(1400).decode().strip()
-	except socket.timeout:
-		# Wait...
-		print('We got a socket timeout... hang on')
-		time.sleep(10)
+	while True:
 		try:
 			reply = sock.recv(1400).decode().strip()
 		except socket.timeout:
-			# Retry it only once. If this fails, anidb is either broken, or
-			# blocking us
-			print('Another timeout... bailing out')
+			# Wait...
+			print('We got a socket timeout... hang on')
+			time.sleep(10)
+			try:
+				reply = sock.recv(1400).decode().strip()
+			except socket.timeout:
+				# Retry it only once. If this fails, anidb is either broken, or
+				# blocking us
+				print('Another timeout... bailing out')
+				raise AbandonShip
+		
+		if 'debug' in config:
+			print('<--', reply)
+		if reply[0:3] == "555" or reply[6:9] == '555':
+			print("We got banned :(")
+			print(reply)
+			print("Try again in 30 minutes")
 			raise AbandonShip
-	
-	if 'debug' in config:
-		print('<--', reply)
-	if reply[0:3] == "555" or reply[6:9] == '555':
-		print("We got banned :(")
-		print(reply)
-		print("Try again in 30 minutes")
-		raise AbandonShip
-	
-	return_tag, code, data = reply.split(' ', 2)
-	
-	# In my next life, I'll handle this better
-	assert return_tag == tag
+		return_tag, code, data = reply.split(' ', 2)
+		if return_tag == tag:
+			break
+		else:
+			print('We got a message with the wrong tag... we have probably '
+				'missed the previous message. I\'ll try again.')
+			# If this was a transmission error, or an anidb error, we will hit
+			# a timeout and die...
 	
 	if code in DIE_MESSAGES:
 		print("OH NOES", code, data)
@@ -120,7 +128,7 @@ def _comm(command, **kwargs):
 def ping(redirect):
 	sys.stdout = redirect
 	_connect()
-	code, reply = _comm('PING', s=session_key)
+	code, reply = _comm('PING')
 	if code == PONG:
 		return True
 	print('Unexpected reply to PING:', code, reply)
@@ -213,8 +221,7 @@ def add(thing, redirect):
 	
 	code, reply = _comm('MYLISTADD',
 		fid=str(thing.fid),
-		state='1',
-		s=session_key)
+		state='1')
 	if code == MYLIST_ENTRY_ADDED:
 		thing.mylist_id = reply.split('\n')[1]
 		thing.added = True
@@ -235,7 +242,7 @@ def watch(thing, redirect):
 	_connect()
 	
 	code, reply = _comm('MYLISTADD',
-		lid=str(thing.mylist_id), s=session_key,
+		lid=str(thing.mylist_id),
 		edit='1', state='1', viewed='1')
 	if code == MYLIST_ENTRY_EDITED:
 		thing.watched = True
