@@ -127,7 +127,7 @@ def _comm(command, **kwargs):
 
 def ping(redirect):
 	sys.stdout = redirect
-	_connect()
+	_connect(needs_auth=False)
 	code, reply = _comm('PING')
 	if code == PONG:
 		return True
@@ -135,7 +135,7 @@ def ping(redirect):
 	return False
 	sys.stdout = sys.__stdout__
 
-def _connect(force=False):
+def _connect(force=False, needs_auth=True):
 	global session_key, sock
 	
 	if not sock:
@@ -144,7 +144,7 @@ def _connect(force=False):
 		sock.settimeout(10)
 	
 	# If we have a session key, we assume that we are connected.
-	if (not session_key) or force:
+	if (not session_key and needs_auth) or force:
 		print('Logging in')
 		code, key = _comm(
 			'AUTH',
@@ -178,14 +178,21 @@ def _connect(force=False):
 		session_key = key.split()[0]
 		print("Login successful, we got session key %s" % session_key)
 
+def _type_map(ext):
+	if ext in ['mpg', 'mpeg', 'avi', 'mkv', 'ogm']:
+		return 'vid'
+	if ext in ['ssa']:
+		return 'sub'
+	print("!!! UNKNOWN FILE EXTENSION:", ext)
+	return None
+
 def load_info(thing, redirect):
 	sys.stdout = redirect
 	_connect()
 	
 	lookup = {
-		'fmask': '48080000a0',
+		'fmask': '48080100a0',
 		'amask': '90808040',
-		's': session_key,
 	}
 	if thing.fid:
 		lookup['fid'] = thing.fid
@@ -203,6 +210,9 @@ def load_info(thing, redirect):
 		thing.aid = int(parts.pop())
 		thing.mylist_id = int(parts.pop())
 		thing.crc32 = parts.pop()
+		thing.file_type = _type_map(parts.pop())
+		if 'debug' in config:
+			print('file type is', thing.file_type)
 		thing.added = parts.pop() == '1'
 		thing.watched = parts.pop() == '1'
 		thing.anime_total_eps = int(parts.pop())

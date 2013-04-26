@@ -22,6 +22,7 @@ def connect(database, user):
 			crc32 text,
 			ep_no text,
 			group_name text,
+			file_type text,
 			updated text
 		)
 	''')
@@ -62,20 +63,21 @@ def load(thing):
 	# Lookup thing by name
 	if not thing.hash:
 		c.execute('''
-			SELECT hash, fid, aid, crc32, ep_no, group_name, updated
+			SELECT hash, fid, aid, crc32, ep_no, group_name, file_type, updated
 			FROM file
 			WHERE filename = ? AND size = ?
 		''', (thing.name, thing.size))
 		r = c.fetchone()
 		if r:
-			thing.hash, thing.fid, thing.aid, \
-				thing.crc32, thing.ep_no, thing.group_name = r[:6]
-			thing.updated = datetime.strptime(r[6], '%Y-%m-%d %H:%M:%S.%f')
+			thing.hash, thing.fid, thing.aid, thing.crc32, thing.ep_no, \
+				thing.group_name, thing.file_type = r[:7]
+			thing.updated = datetime.strptime(r[7], '%Y-%m-%d %H:%M:%S.%f')
 	
 	# Lookup thing by hash
 	if thing.hash:
 		c.execute('''
-			SELECT filename, fid, aid, crc32, ep_no, group_name, updated
+			SELECT
+				filename, fid, aid, crc32, ep_no, group_name, file_type, updated
 			FROM file
 			WHERE hash = ? AND size = ?
 		''', (thing.hash, thing.size))
@@ -88,9 +90,9 @@ def load(thing):
 		if r[0] != thing.name:
 			print('Filename in database have changed')
 			thing.dirty = True
-		thing.fid, thing.aid, thing.crc32, thing.ep_no, thing.group_name \
-			= r[1:6]
-		thing.updated = datetime.strptime(r[6], '%Y-%m-%d %H:%M:%S.%f')
+		thing.fid, thing.aid, thing.crc32, thing.ep_no, thing.group_name, \
+			thing.file_type = r[1:7]
+		thing.updated = datetime.strptime(r[7], '%Y-%m-%d %H:%M:%S.%f')
 		
 	if thing.fid:
 		# Look up the status.
@@ -132,11 +134,12 @@ def save(thing):
 		c.execute('''
 			INSERT INTO file (
 				hash, filename, size, fid, aid, crc32, ep_no,
-				group_name, updated)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				group_name, file_type, updated)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		''', (
 			thing.hash, thing.name, thing.size, thing.fid, thing.aid,
-			thing.crc32, thing.ep_no, thing.group_name, str(thing.updated)))
+			thing.crc32, thing.ep_no, thing.group_name, thing.file_type,
+			str(thing.updated)))
 		
 		c.execute('''
 			DELETE FROM file_status
@@ -163,3 +166,32 @@ def save(thing):
 			thing.anime_type, str(thing.updated)))
 		
 		conn.commit()
+
+def find_duplicates():
+	_check_connection()
+	c = conn.cursor()
+	f = conn.cursor()
+	c.execute('''
+		SELECT DISTINCT a.aid, anime.name, a.ep_no
+		FROM file a, file b, anime
+		WHERE
+			a.aid = b.aid AND
+			a.aid = anime.aid AND
+			a.ep_no = b.ep_no AND
+			a.hash != b.hash AND (
+				(a.file_type ISNULL) OR
+				(b.file_type ISNULL) OR
+				a.file_type = b.file_type
+			)
+	''')
+	for aid, name, ep in c.fetchall():
+		yield 'Duplicate files for %s - %s:' % (name, ep)
+		f.execute('''
+			SELECT fid, filename, file_type
+			FROM file
+			WHERE aid = ? and ep_no = ?
+		''', (aid, ep))
+		for fid, name, type in f.fetchall():
+			if not type:
+				type = 'unknown - please try re-kiara\'ing this file'
+			yield '    %d  %s  [%s]' % (fid, name, type)

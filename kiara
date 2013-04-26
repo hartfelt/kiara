@@ -16,7 +16,10 @@ parser.add_argument('-o', '--organize',
 parser.add_argument('-c', '--config',
 	action='store', dest='config', type=argparse.FileType('r'),
 	help='Alternative config file to use.')
-parser.add_argument('files',
+parser.add_argument('--find-duplicates',
+	action='store_true', dest='find_duplicates',
+	help='Lists all episode for which you have more than one file')
+parser.add_argument('file',
 	metavar='FILE', type=argparse.FileType('rb'), nargs='*',
 	help='a file to do something with')
 
@@ -30,5 +33,8 @@ if not libkiara.check_config():
 assert libkiara.ping()
 
 # OK, run over the files.
-for file in args.files:
+for file in args.file:
 	libkiara.process(os.path.abspath(file.name), args.watch, args.organize)
+if args.find_duplicates:
+	print('Locating duplicate files...')
+	libkiara.find_duplicates()

@@ -90,3 +90,7 @@ def process(file, watch=False, organize=False):
 	
 	for line in _send(q + ' ' + file):
 		print(line)
+
+def find_duplicates():
+	for line in _send('- dups'):
+		print(line)

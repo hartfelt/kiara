@@ -26,6 +26,7 @@ class KiaraFile(object):
 		self.mylist_id = None
 		self.aid = None
 		self.crc32 = None
+		self.type = None
 		
 		self.anime_total_eps = None
 		self.anime_name = None
@@ -41,6 +42,7 @@ class KiaraFile(object):
 			self.mylist_id == None or
 			self.aid == None or
 			self.crc32 == None or
+			self.file_type == None or
 			self.anime_total_eps == None or
 			self.anime_name == None or
 			self.anime_type == None or
@@ -105,7 +107,13 @@ class Handler(socketserver.BaseRequestHandler):
 					self.reply('pong')
 				else:
 					self.reply('No answer :(')
-		
+			if file_name == 'dups':
+				dups = False
+				for line in database.find_duplicates():
+					dups = True
+					self.reply(line)
+				if not dups:
+					self.reply('No duplicate files :)')
 		else:
 			try:
 				# File related commands
