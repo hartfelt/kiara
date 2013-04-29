@@ -19,6 +19,11 @@ parser.add_argument('-c', '--config',
 parser.add_argument('--find-duplicates',
 	action='store_true', dest='find_duplicates',
 	help='Lists all episode for which you have more than one file')
+parser.add_argument('--forget',
+	type=int, metavar='FID', nargs='*', dest='forget_fid',
+	help='Delete all info from the database (but not the file itself) about '
+		'the files with the giver anidb file-id. (These are the numbers output '
+		'by --find-duplicates')
 parser.add_argument('file',
 	metavar='FILE', type=argparse.FileType('rb'), nargs='*',
 	help='a file to do something with')
@@ -38,3 +43,5 @@ for file in args.file:
 if args.find_duplicates:
 	print('Locating duplicate files...')
 	libkiara.find_duplicates()
+if args.forget_fid:
+	libkiara.forget(*args.forget_fid)

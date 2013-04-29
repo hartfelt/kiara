@@ -181,7 +181,7 @@ def _connect(force=False, needs_auth=True):
 def _type_map(ext):
 	if ext in ['mpg', 'mpeg', 'avi', 'mkv', 'ogm']:
 		return 'vid'
-	if ext in ['ssa']:
+	if ext in ['ssa', 'sub']:
 		return 'sub'
 	print("!!! UNKNOWN FILE EXTENSION:", ext)
 	return None

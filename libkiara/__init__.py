@@ -94,3 +94,7 @@ def process(file, watch=False, organize=False):
 def find_duplicates():
 	for line in _send('- dups'):
 		print(line)
+
+def forget(*fids):
+	for line in _send('- forget ' + ' '.join(list(map(str, fids)))):
+		print(line)

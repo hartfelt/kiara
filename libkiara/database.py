@@ -195,3 +195,19 @@ def find_duplicates():
 			if not type:
 				type = 'unknown - please try re-kiara\'ing this file'
 			yield '    %d  %s  [%s]' % (fid, name, type)
+
+def forget(fid):
+	_check_connection()
+	c = conn.cursor()
+	c.execute(
+		'DELETE FROM file_status WHERE fid = ? AND username = ?',
+		(fid, username))
+	c.execute(
+		'SELECT count(*) FROM file_status WHERE fid = ?',
+		(fid,))
+	if c.fetchone() != (0,):
+		yield '!!! Other users are using that file, I won\'t forget about that'
+	else:
+		c.execute('DELETE FROM file WHERE fid = ?', (fid,))
+		yield 'Forgot about %d' % fid
+	conn.commit()

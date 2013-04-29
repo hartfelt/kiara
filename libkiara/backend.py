@@ -114,6 +114,10 @@ class Handler(socketserver.BaseRequestHandler):
 					self.reply(line)
 				if not dups:
 					self.reply('No duplicate files :)')
+			if file_name.startswith('forget'):
+				for fid in file_name.split(' ')[1:]:
+					for line in database.forget(int(fid)):
+						self.reply(line)
 		else:
 			try:
 				# File related commands
