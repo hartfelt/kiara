@@ -6,7 +6,7 @@ setup(
 	description='Kiara updates your anidb list and sorts your anime',
 	author='Bjørn Hartfelt',
 	author_email='b.hartfelt@gmail.com',
-	url='http://hartfelt.de/kiara',
+	url='https://github.com/hartfelt/kiara',
 	packages=['libkiara'],
 	scripts=['kiara'],
 	data_files=[('/etc', ['kiararc'])],
