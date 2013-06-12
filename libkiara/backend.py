@@ -63,6 +63,14 @@ class KiaraFile(object):
 			parts.append('(unsaved)')
 		return ' '.join(parts)
 
+def makedirs(path):
+	parts = os.path.abspath(path).split(os.path.sep)
+	path = parts.pop(0) # The path was absolut, so this is the empty string
+	while parts:
+		path = os.path.join(path, parts.pop(0))
+		if not os.path.exists(path):
+			os.makedirs(path, exist_ok=True)
+
 def rmdirp(path):
 	while path:
 		if os.listdir(path) == []:
@@ -154,7 +162,7 @@ class Handler(socketserver.BaseRequestHandler):
 							self.reply('Type is ' + file.anime_type +
 								', so I\'ll put this in ' + dir)
 						
-						os.makedirs(os.path.normpath(dir), exist_ok=True)
+						makedirs(os.path.normpath(dir))
 						new_name = None
 						if file.anime_total_eps == "1":
 							new_name = "[%s] %s [%s]%s" % (
