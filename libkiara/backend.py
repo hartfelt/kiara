@@ -69,7 +69,7 @@ def makedirs(path):
 	while parts:
 		path = os.path.join(path, parts.pop(0))
 		if not os.path.exists(path):
-			os.makedirs(path, exist_ok=True)
+			os.makedirs(path)
 
 def rmdirp(path):
 	while path:
