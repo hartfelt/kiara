@@ -65,7 +65,7 @@ class KiaraFile(object):
 
 def makedirs(path):
 	parts = os.path.abspath(path).split(os.path.sep)
-	path = parts.pop(0) # The path was absolut, so this is the empty string
+	path = '/'
 	while parts:
 		path = os.path.join(path, parts.pop(0))
 		if not os.path.exists(path):
