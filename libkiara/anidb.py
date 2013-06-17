@@ -179,7 +179,7 @@ def _connect(force=False, needs_auth=True):
 		print("Login successful, we got session key %s" % session_key)
 
 def _type_map(ext):
-	if ext in ['mpg', 'mpeg', 'avi', 'mkv', 'ogm']:
+	if ext in ['mpg', 'mpeg', 'avi', 'mkv', 'ogm', 'mp4']:
 		return 'vid'
 	if ext in ['ssa', 'sub']:
 		return 'sub'
