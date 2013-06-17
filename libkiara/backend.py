@@ -182,7 +182,7 @@ class Handler(socketserver.BaseRequestHandler):
 						else:
 							if os.path.isfile(new_path):
 								self.reply('!!! ' + new_path +
-									' already existst, not overwriting')
+									' already exists, not overwriting')
 							else:
 								shutil.move(file_name, new_path)
 								self.reply('Moved ' + file_name +
