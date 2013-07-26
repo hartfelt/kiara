@@ -16,6 +16,9 @@ parser.add_argument('-o', '--organize',
 parser.add_argument('--copy',
 	action='store_true', dest='organize_copy',
 	help='When organizing files, copy them instead of moving them.')
+parser.add_argument('--overwrite',
+	action='store_true', dest='organize_overwrite',
+	help='When organizing files, always overwrite any existing files.')
 parser.add_argument('-c', '--config',
 	action='store', dest='config', type=argparse.FileType('r'),
 	help='Alternative config file to use.')
@@ -51,7 +54,8 @@ for file in args.file:
 	libkiara.process(os.path.abspath(file),
 			watch=args.watch,
 			organize=args.organize,
-			organize_copy=args.organize_copy)
+			organize_copy=args.organize_copy,
+			organize_overwrite=args.organize_overwrite)
 if args.find_duplicates:
 	print('Locating duplicate files...')
 	libkiara.find_duplicates()

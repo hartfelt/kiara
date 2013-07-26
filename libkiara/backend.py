@@ -180,9 +180,10 @@ class Handler(socketserver.BaseRequestHandler):
 						if file_name == new_path:
 							self.reply(new_name + ' is already organized')
 						else:
-							if os.path.isfile(new_path):
+							if os.path.isfile(new_path) and not 'x' in act:
 								self.reply('!!! ' + new_path +
-									' already exists, not overwriting')
+									' already exists, not overwriting without '
+									'--overwrite')
 							else:
 								if 'c' in act:
 									shutil.copyfile(file_name, new_path)

@@ -81,7 +81,16 @@ def ping():
 		wah = l == 'pong'
 	return wah
 
-def process(file, watch=False, organize=False, organize_copy=False):
+# Backend actions:
+# a  Add file
+# c  Copy file instead of moving
+# x  Overwrite existing files
+# o  Organize file
+# w  Mark file watched
+
+def process(file,
+		watch=False, organize=False, organize_copy=False,
+		organize_overwrite=False):
 	q = 'a'
 	if watch:
 		q += 'w'
@@ -89,6 +98,8 @@ def process(file, watch=False, organize=False, organize_copy=False):
 		q += 'o'
 		if organize_copy:
 			q += 'c'
+		if organize_overwrite:
+			q += 'x'
 	
 	for line in _send(q + ' ' + file):
 		print(line)
