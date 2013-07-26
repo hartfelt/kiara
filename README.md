@@ -34,6 +34,8 @@ From `kiara -h`:
 	                        them.
 	  --overwrite           When organizing files, always overwrite any existing
 	                        files.
+	  --skip-update         Skip updating file info from anidb, when the cached
+	                        info is old. (missing info will still be fetched)
 	  -c CONFIG, --config CONFIG
 	                        Alternative config file to use.
 	  --find-duplicates     Lists all episode for which you have more than one

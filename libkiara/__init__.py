@@ -84,14 +84,17 @@ def ping():
 # Backend actions:
 # a  Add file
 # c  Copy file instead of moving
-# x  Overwrite existing files
 # o  Organize file
+# u  Get new file info from anidb when the cache is old
 # w  Mark file watched
+# x  Overwrite existing files
 
 def process(file,
-		watch=False, organize=False, organize_copy=False,
+		update_info=True, watch=False, organize=False, organize_copy=False,
 		organize_overwrite=False):
 	q = 'a'
+	if update_info:
+		q += 'u'
 	if watch:
 		q += 'w'
 	if organize:

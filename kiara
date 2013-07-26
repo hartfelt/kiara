@@ -19,6 +19,10 @@ parser.add_argument('--copy',
 parser.add_argument('--overwrite',
 	action='store_true', dest='organize_overwrite',
 	help='When organizing files, always overwrite any existing files.')
+parser.add_argument('--skip-update',
+	action='store_false', dest='update_info', default=True,
+	help='Skip updating file info from anidb, when the cached info is old. '
+		'(missing info will still be fetched)')
 parser.add_argument('-c', '--config',
 	action='store', dest='config', type=argparse.FileType('r'),
 	help='Alternative config file to use.')
@@ -52,6 +56,7 @@ assert libkiara.ping()
 # OK, run over the files.
 for file in args.file:
 	libkiara.process(os.path.abspath(file),
+			update_info=args.update_info,
 			watch=args.watch,
 			organize=args.organize,
 			organize_copy=args.organize_copy,

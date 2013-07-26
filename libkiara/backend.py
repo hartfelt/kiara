@@ -138,7 +138,8 @@ class Handler(socketserver.BaseRequestHandler):
 					file.hash = ed2khash.hash(file.file)
 					database.load(file)
 				
-				if file.misses_info() or \
+				if file.misses_info() or not file.updated or \
+						'u' in act and \
 						file.updated < datetime.now() - timedelta(days=7):
 					anidb.load_info(file, self)
 				
