@@ -39,7 +39,9 @@ assert libkiara.ping()
 
 # OK, run over the files.
 for file in args.file:
-	libkiara.process(os.path.abspath(file.name), args.watch, args.organize)
+	libkiara.process(os.path.abspath(file.name),
+			watch=args.watch,
+			organize=args.organize)
 if args.find_duplicates:
 	print('Locating duplicate files...')
 	libkiara.find_duplicates()
