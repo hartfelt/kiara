@@ -183,6 +183,8 @@ def _type_map(ext):
 		return 'vid'
 	if ext in ['ssa', 'sub']:
 		return 'sub'
+	if ext in ['flac', 'mp3']:
+		return 'snd'
 	print("!!! UNKNOWN FILE EXTENSION:", ext)
 	return None
 
