@@ -184,9 +184,14 @@ class Handler(socketserver.BaseRequestHandler):
 								self.reply('!!! ' + new_path +
 									' already exists, not overwriting')
 							else:
-								shutil.move(file_name, new_path)
-								self.reply('Moved ' + file_name +
-									' to ' + new_path)
+								if 'c' in act:
+									shutil.copyfile(file_name, new_path)
+									self.reply('Copied ' + file_name +
+										' to ' + new_path)
+								else:
+									shutil.move(file_name, new_path)
+									self.reply('Moved ' + file_name +
+										' to ' + new_path)
 								file.name = new_name
 								file.dirty = True
 						

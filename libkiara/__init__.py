@@ -81,12 +81,14 @@ def ping():
 		wah = l == 'pong'
 	return wah
 
-def process(file, watch=False, organize=False):
+def process(file, watch=False, organize=False, organize_copy=False):
 	q = 'a'
 	if watch:
 		q += 'w'
 	if organize:
 		q += 'o'
+		if organize_copy:
+			q += 'c'
 	
 	for line in _send(q + ' ' + file):
 		print(line)
