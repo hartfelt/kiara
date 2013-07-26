@@ -17,24 +17,28 @@ Usage
 -----
 From `kiara -h`:
 
-	usage: kiara [-h] [-w] [-o] [-c CONFIG] [--find-duplicates]
-				 [--forget [FID [FID ...]]]
-				 [FILE [FILE ...]]
+	usage: kiara [-h] [-w] [-o] [--copy] [--overwrite] [-c CONFIG]
+	             [--find-duplicates] [--forget [FID [FID ...]]]
+	             [FILE [FILE ...]]
 	
 	Do stuff with anime files and anidb.
 	
 	positional arguments:
-	  FILE                  a file to do something with
+	  FILE                  A file to do something with
 	
 	optional arguments:
 	  -h, --help            show this help message and exit
 	  -w, --watch           Mark all the files watched.
 	  -o, --organize        Organize ALL THE FILES _o/
+	  --copy                When organizing files, copy them instead of moving
+	                        them.
+	  --overwrite           When organizing files, always overwrite any existing
+	                        files.
 	  -c CONFIG, --config CONFIG
-							Alternative config file to use.
+	                        Alternative config file to use.
 	  --find-duplicates     Lists all episode for which you have more than one
-							file
+	                        file
 	  --forget [FID [FID ...]]
-							Delete all info from the database (but not the file
-							itself) about the files with the giver anidb file-id.
-							(These are the numbers output by --find-duplicates
+	                        Delete all info from the database (but not the file
+	                        itself) about the files with the giver anidb file-id.
+	                        (These are the numbers output by --find-duplicates
