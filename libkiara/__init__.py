@@ -42,7 +42,6 @@ def check_config():
 	return config_ok
 
 def _send(msg):
-	print()
 	def inner():
 		client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 		client.connect(os.path.expanduser(_config['session']))

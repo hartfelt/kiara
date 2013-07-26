@@ -148,9 +148,15 @@ class Handler(socketserver.BaseRequestHandler):
 						'Will not process further')
 				else:
 					if (not file.added) and 'a' in act:
+						self.reply('Adding %s %s to your mylist...' % (
+							file.anime_name, str(file.ep_no)
+						))
 						anidb.add(file, self)
 					
 					if not file.watched and 'w' in act:
+						self.reply('Marking %s %s watched...' % (
+							file.anime_name, str(file.ep_no)
+						))
 						anidb.watch(file, self)
 					
 					if 'o' in act:
