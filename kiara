@@ -28,10 +28,16 @@ parser.add_argument('--forget',
 		'the files with the giver anidb file-id. (These are the numbers output '
 		'by --find-duplicates')
 parser.add_argument('file',
-	metavar='FILE', type=argparse.FileType('rb'), nargs='*',
-	help='a file to do something with')
+	metavar='FILE', type=str, nargs='*',
+	help='A file to do something with')
 
 args = parser.parse_args()
+
+# First, make sure that all the files are actually files.
+for file in args.file:
+	if not os.path.isfile(os.path.abspath(file)):
+		print('!!! %s is not a file' % file)
+		sys.exit()
 
 if args.config:
 	libkiara.load_config_file(args.config.name)
@@ -42,7 +48,7 @@ assert libkiara.ping()
 
 # OK, run over the files.
 for file in args.file:
-	libkiara.process(os.path.abspath(file.name),
+	libkiara.process(os.path.abspath(file),
 			watch=args.watch,
 			organize=args.organize,
 			organize_copy=args.organize_copy)
