@@ -74,7 +74,7 @@ def makedirs(path):
 def rmdirp(path):
 	while path:
 		if os.listdir(path) == []:
-			yield 'The dir ' + path + ' is now empty, will remove it'
+			yield ['status', 'removing_empty_dir', path]
 			os.rmdir(path)
 			path = os.path.dirname(path)
 		else:
@@ -93,11 +93,13 @@ class Handler(socketserver.BaseRequestHandler):
 		return super().__init__(*args, **kwargs)
 	
 	def reply(self, message, catch_fails=True):
+		if type(message) == list:
+			message = '\n'.join(message)
 		self.write(message + '\n', catch_fails)
 	
 	def write(self, message, catch_fails=True):
 		try:
-			self.request.send(bytes(message, 'UTF-8'))
+			self.request.send(bytes(message+'\n', 'UTF-8'))
 		except socket.error:
 			if catch_fails:
 				self.queued_messages.append(message)
@@ -112,16 +114,16 @@ class Handler(socketserver.BaseRequestHandler):
 			# Non-file related commands
 			if file_name == 'ping':
 				if anidb.ping(self):
-					self.reply('pong')
+					self.reply(['success', 'anidb_ping_ok'])
 				else:
-					self.reply('No answer :(')
+					self.reply(['error', 'anidb_ping_error'])
 			if file_name == 'dups':
 				dups = False
 				for line in database.find_duplicates():
 					dups = True
 					self.reply(line)
 				if not dups:
-					self.reply('No duplicate files :)')
+					self.reply(['success', 'dups_none'])
 			if file_name.startswith('forget'):
 				for fid in file_name.split(' ')[1:]:
 					for line in database.forget(int(fid)):
@@ -134,7 +136,7 @@ class Handler(socketserver.BaseRequestHandler):
 				# Load file info.
 				database.load(file)
 				if not file.hash:
-					self.reply('Hashing ' + file.name)
+					self.reply(['status', 'hashing_file', file.name])
 					file.hash = ed2khash.hash(file.file)
 					database.load(file)
 				
@@ -144,19 +146,16 @@ class Handler(socketserver.BaseRequestHandler):
 					anidb.load_info(file, self)
 				
 				if not file.fid:
-					self.reply('!!! File is unknown to anidb. '
-						'Will not process further')
+					self.reply(['error', 'anidb_file_unknown'])
 				else:
 					if (not file.added) and 'a' in act:
-						self.reply('Adding %s %s to your mylist...' % (
-							file.anime_name, str(file.ep_no)
-						))
+						self.reply(['status', 'anidb_adding_file',
+							file.anime_name, str(file.ep_no)])
 						anidb.add(file, self)
 					
 					if not file.watched and 'w' in act:
-						self.reply('Marking %s %s watched...' % (
-							file.anime_name, str(file.ep_no)
-						))
+						self.reply(['status', 'anidb_marking_watched',
+							file.anime_name, str(file.ep_no)])
 						anidb.watch(file, self)
 					
 					if 'o' in act:
@@ -165,9 +164,8 @@ class Handler(socketserver.BaseRequestHandler):
 							config['basepath_movie']
 							if file.is_movie()
 							else config['basepath_series'])), anime_name)
-						if 'debug' in config:
-							self.reply('Type is ' + file.anime_type +
-								', so I\'ll put this in ' + dir)
+						self.reply(['debug', 'file_type_location',
+							file.anime_type, dir])
 						
 						makedirs(os.path.normpath(dir))
 						new_name = None
@@ -185,21 +183,20 @@ class Handler(socketserver.BaseRequestHandler):
 						new_path = os.path.join(dir, new_name)
 						
 						if file_name == new_path:
-							self.reply(new_name + ' is already organized')
+							self.reply(['status', 'file_already_organized',
+								new_name])
 						else:
 							if os.path.isfile(new_path) and not 'x' in act:
-								self.reply('!!! ' + new_path +
-									' already exists, not overwriting without '
-									'--overwrite')
+								self.reply(['error', 'file_exists', new_path])
 							else:
 								if 'c' in act:
 									shutil.copyfile(file_name, new_path)
-									self.reply('Copied ' + file_name +
-										' to ' + new_path)
+									self.reply(['success', 'file_copied',
+										file_name, new_path])
 								else:
 									shutil.move(file_name, new_path)
-									self.reply('Moved ' + file_name +
-										' to ' + new_path)
+									self.reply(['success', 'file_moved',
+										file_name, new_path])
 								file.name = new_name
 								file.dirty = True
 						
@@ -213,7 +210,7 @@ class Handler(socketserver.BaseRequestHandler):
 				sys.exit(status)
 				
 			except AbandonShip:
-				self.reply('well... something went wrong')
+				self.reply(['error', 'abandon_ship'])
 				# Ignore the actual error, the connection will be closed now
 			
 		self.request.sendall(bytes('---end---', 'UTF-8'))

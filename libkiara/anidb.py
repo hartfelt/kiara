@@ -52,6 +52,23 @@ sock = None
 message_interval = timedelta(seconds=3)
 next_message = datetime.now()
 
+# Wrap outputting
+OUTPUT = None
+output_queue = list()
+def output(*args):
+	global OUTPUT
+	try:
+		if OUTPUT:
+			OUTPUT(list(args))
+	except TypeError: # OUTPUT is not a function.
+		OUTPUT = None
+		output_queue.append(args)
+def set_output(o):
+	global OUTPUT
+	while output_queue:
+		o(output_queue.pop(0))
+	OUTPUT = o
+
 def tag_gen(length=5):
 	""" Makes random strings for use as tags, so messages from anidb will not
 	get mixed up. """
@@ -77,8 +94,8 @@ def _comm(command, **kwargs):
 	# Send shit.
 	shit = (command + " " + "&".join(
 		map(lambda k: "%s=%s" % (k, kwargs[k]), kwargs)))
-	if 'debug' in config:
-		print('-->', (shit if command is not 'AUTH' else 'AUTH (hidden)'))
+	output('debug', '_',
+		'--> %s' % (shit if command is not 'AUTH' else 'AUTH (hidden)'))
 	sock.send(shit.encode('ascii'))
 	
 	# Receive shit
@@ -87,53 +104,48 @@ def _comm(command, **kwargs):
 			reply = sock.recv(1400).decode().strip()
 		except socket.timeout:
 			# Wait...
-			print('We got a socket timeout... hang on')
+			output('status', 'socket_timeout')
 			time.sleep(10)
 			try:
 				reply = sock.recv(1400).decode().strip()
 			except socket.timeout:
 				# Retry it only once. If this fails, anidb is either broken, or
 				# blocking us
-				print('Another timeout... bailing out')
-				raise AbandonShip
+				output('error', 'socket_timeout_again')
+				raise AbanonShip
 		
-		if 'debug' in config:
-			print('<--', reply)
+		output('debug', '_', '<-- %s' % reply)
 		if reply[0:3] == "555" or reply[6:9] == '555':
-			print("We got banned :(")
-			print(reply)
-			print("Try again in 30 minutes")
+			output('error', 'banned', reply)
 			raise AbandonShip
 		return_tag, code, data = reply.split(' ', 2)
 		if return_tag == tag:
 			break
 		else:
-			print('We got a message with the wrong tag... we have probably '
-				'missed the previous message. I\'ll try again.')
+			output('debug', 'wrong_tag')
 			# If this was a transmission error, or an anidb error, we will hit
 			# a timeout and die...
 	
 	if code in DIE_MESSAGES:
-		print("OH NOES", code, data)
+		output('error', 'oh_no', code, data)
 		raise AbandonShip
 	if code in LATER_MESSAGES:
-		print("AniDB is busy, please try again later")
+		output('error', 'anidb_busy')
 		raise AbandonShip
 	if code in REAUTH_MESSAGES:
-		print('We need to log in again (%s %s)' % (code, data))
+		output('status', 'login_again', code, data)
 		_connect(force=True)
 		return _comm(command, **kwargs)
 	return code, data
 
 def ping(redirect):
-	sys.stdout = redirect
+	set_output(redirect.reply)
 	_connect(needs_auth=False)
 	code, reply = _comm('PING')
 	if code == PONG:
 		return True
-	print('Unexpected reply to PING:', code, reply)
+	output('error', 'unexpected_reply', code, reply)
 	return False
-	sys.stdout = sys.__stdout__
 
 def _connect(force=False, needs_auth=True):
 	global session_key, sock
@@ -145,7 +157,7 @@ def _connect(force=False, needs_auth=True):
 	
 	# If we have a session key, we assume that we are connected.
 	if (not session_key and needs_auth) or force:
-		print('Logging in')
+		output('status', 'logging_in')
 		code, key = _comm(
 			'AUTH',
 			user=config['user'],
@@ -155,28 +167,22 @@ def _connect(force=False, needs_auth=True):
 			**{'pass': config['pass']} # We cannot use pass as a name :(
 		)
 		if code == LOGIN_ACCEPTED_OUTDATED_CLIENT:
-			print("Login accepted, but your copy of kiara is outdated.")
-			print("Please consider updating it.")
+			output('status', 'login_accepted_outdated_client')
 		elif code == LOGIN_ACCEPTED:
 			pass
 		elif code in CLIENT_VERSION_OUTDATED:
-			print("kiara have become outdated :(")
-			print("check the interwebs for an updated version")
+			output('error', 'kiara_outdated')
 			raise AbandonShip
 		elif code in CLIENT_BANNED:
-			print("kiara is banned from AniDB :(")
-			print("(Your AniDB user should be ok)")
+			output('error', 'kiara_banned')
 			sys.exit()
 		else:
-			print(
-				"Unexpected return code to AUTH command. Please show " +
-				"this to the delevopers of kiara:"
-			)
-			print(code, key)
+			output('error', 'login_unexpected_return', code, key)
 			raise AbandonShip
 		
 		session_key = key.split()[0]
-		print("Login successful, we got session key %s" % session_key)
+		output('status', 'login_successful')
+		output('debug', 'login_session_key', session_key)
 
 def _type_map(ext):
 	if ext in ['mpg', 'mpeg', 'avi', 'mkv', 'ogm', 'mp4']:
@@ -185,11 +191,11 @@ def _type_map(ext):
 		return 'sub'
 	if ext in ['flac', 'mp3']:
 		return 'snd'
-	print("!!! UNKNOWN FILE EXTENSION:", ext)
+	output('error', 'unknown_file_extension', ext)
 	return None
 
 def load_info(thing, redirect):
-	sys.stdout = redirect
+	set_output(redirect.reply)
 	_connect()
 	
 	lookup = {
@@ -204,7 +210,7 @@ def load_info(thing, redirect):
 	
 	code, reply = _comm('FILE', **lookup)
 	if code == NO_SUCH_FILE:
-		print('File not found :(')
+		output('error', 'anidb_file_unknown')
 	elif code == FILE:
 		parts = reply.split('\n')[1].split('|')
 		parts.reverse()
@@ -213,8 +219,7 @@ def load_info(thing, redirect):
 		thing.mylist_id = int(parts.pop())
 		thing.crc32 = parts.pop()
 		thing.file_type = _type_map(parts.pop())
-		if 'debug' in config:
-			print('file type is', thing.file_type)
+		output('debug', 'file_type', thing.file_type)
 		thing.added = parts.pop() == '1'
 		thing.watched = parts.pop() == '1'
 		thing.anime_total_eps = int(parts.pop())
@@ -224,11 +229,9 @@ def load_info(thing, redirect):
 		thing.group_name = parts.pop()
 		thing.updated = datetime.now()
 		thing.dirty = True
-	
-	sys.stdout = sys.__stdout__
 
 def add(thing, redirect):
-	sys.stdout = redirect
+	set_output(redirect.reply)
 	_connect()
 	
 	code, reply = _comm('MYLISTADD',
@@ -238,19 +241,17 @@ def add(thing, redirect):
 		thing.mylist_id = reply.split('\n')[1]
 		thing.added = True
 		thing.dirty = True
-		print('File added')
+		output('success', 'file_added')
 	elif code == FILE_ALREADY_IN_MYLIST:
 		thing.mylist_id = reply.split('\n')[1].split('|')[0]
 		thing.added = True
 		thing.dirty = True
-		print('File added')
+		output('success', 'file_added')
 	else:
-		print('UNEXPECTED REPLY:', code, reply)
-	
-	sys.stdout = sys.__stdout__
+		output('error', 'unexpected_reply', code, reply)
 
 def watch(thing, redirect):
-	sys.stdout = redirect
+	set_output(redirect.reply)
 	_connect()
 	
 	code, reply = _comm('MYLISTADD',
@@ -259,8 +260,6 @@ def watch(thing, redirect):
 	if code == MYLIST_ENTRY_EDITED:
 		thing.watched = True
 		thing.dirty = True
-		print('File marked watched')
+		output('success', 'file_marked_watched')
 	else:
-		print('UNEXPECTED REPLY:', code, reply)
-	
-	sys.stdout = sys.__stdout__
+		output('error', 'unexpected_reply', code, reply)

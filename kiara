@@ -40,29 +40,153 @@ parser.add_argument('file',
 
 args = parser.parse_args()
 
+# Status printing.
+def pp(head):
+	def inner(s):
+		res = ''
+		tag = head
+		line = ''
+		parts = str(s).split(' ')
+		while parts:
+			if line:
+				line += ' '
+			line += parts.pop(0)
+			if parts and len(line) + len(parts[0]) > 71:
+				res += tag + line + '\n'
+				line = ''
+				tag = ' ' * len(tag)
+		return res + tag + line
+	return inner
+	
+legacy = pp('ERROR ')
+status = pp('      ')
+success = pp('OK    ')
+error = pp('ERROR ')
+debug = pp('debug ')
+try:
+	import colorama
+	colorama.init()
+	prnt = {
+		'legacy': lambda s:
+			(colorama.Fore.YELLOW + legacy(s) + colorama.Fore.RESET),
+		'status': status,
+		'success': lambda s:
+			(colorama.Fore.GREEN + success(s) + colorama.Fore.RESET),
+		'error': lambda s:
+			(colorama.Fore.RED + error(s) + colorama.Fore.RESET),
+		'debug': lambda s:
+			(colorama.Fore.CYAN + debug(s) + colorama.Fore.RESET),
+	}
+except ImportError:
+	prnt = {
+		'legacy': legacy,
+		'status': status,
+		'success': success,
+		'error': error,
+		'debug': debug,
+	}
+
+trans = {
+	'_': '{0}',
+	'abandon_ship': 'Well... something went wrong',
+	'anidb_adding_file': 'Adding {0} {1} to your mylist...',
+	'anidb_busy': 'AniDB is busy, please try again later.',
+	'anidb_file_unknown': 'File is unknown to anidb. Will not process further.',
+	'anidb_marking_watched': 'Marking {0} {1} watched...',
+	'anidb_ping_error': 'No answer from anidb :(',
+	'anidb_ping_ok': 'Pinged anidb.',
+	'backend_start': 'Unable to contact the backend. Will try to start one...',
+	'backend_start_failed': 'Unable to start a new backend, sorry :(',
+	'banned': 'We got banned :(\n{0}\nTry again in 30 minutes',
+	'dup': '- {0}  {1}  [{2}]',
+	'dup_no_type': '- {0}  {1}  [unknown - '
+		'please try re-kiara\'ing this file]',
+	'dups_for': 'Duplicate files for {0} - {1}:',
+	'dups_forget_others': 'Other users are using that file, I won\'t forget '
+		'about that',
+	'dups_forgot': 'Forgot about {0}',
+	'dups_none': 'No duplicate files :)',
+	'file_added': 'File added.',
+	'file_already_organized': '{0} is already organized.',
+	'file_copied': 'Copied {0} to {1}',
+	'file_exists': '{0} already exists, not overwriting without --overwrite',
+	'file_marked_watched': 'File marked watched',
+	'file_moved': 'Moved {0} to {1}',
+	'file_type': 'File type is {0}',
+	'file_type_location': 'Type is {0}, so I\'ll put this in {1}',
+	'hashing_file': 'Hashing {0}...',
+	'kiara_banned': 'kiara is banned from AniDB.\nYour AniDB user should be ok',
+	'kiara_outdated': 'kiara have become outdated :(\nCheck the interwebs for '
+		'an updated version',
+	'logging_in': 'Logging in...',
+	'login_accepted_outdated_client': 'Login accepted, but your copy of kiara '
+		'is outdated.\nPlease consider updating it.',
+	'login_again': 'We need to log in again ({0} {1})',
+	'login_successful': 'Login successful.',
+	'login_session_key': 'We got session key {0}',
+	'login_unexpected_return': 'Unexpected return code to AUTH command. Please '
+		'show this to the delevopers of kiara: {0} {1}',
+	'oh_no': 'OH NOES: {0} {1}',
+	'removing_empty_dir': 'The dir {0} is now empty, will remove it.',
+	'socket_timeout': 'We got a socket timeout... hang on',
+	'socket_timeout_again': 'Another timeout... bailing out',
+	'unexpected_reply': 'Unexpected reply: {0} {1}',
+	'unknown_file_extension': 'Unknown file extension: {0}',
+	'wrong_tag': 'We got a message with the wrong tag... we have probably '
+		'missed the previous message. I\'ll try again.',
+}
+
+def format_status(status):
+	try:
+		if type(status) == list and len(status) >= 2:
+			tag, msg, data = status[0], status[1], status[2:]
+			if tag != 'debug' or 'debug' in libkiara._config:
+				return prnt[tag](trans[msg].format(*data))
+			else:
+				return None
+	except Exception as e:
+		print(colorama.Fore.WHITE + colorama.Back.RED)
+		print(e)
+		print(colorama.Fore.RESET + colorama.Back.RESET)
+		
+	# Legacy status.
+	return prnt['legacy'](status)
+
 # First, make sure that all the files are actually files.
 for file in args.file:
 	if not os.path.isfile(os.path.abspath(file)):
 		print('!!! %s is not a file' % file)
 		sys.exit()
 
+# Load configuration
 if args.config:
 	libkiara.load_config_file(args.config.name)
 if not libkiara.check_config():
 	sys.exit(-1)
 
-assert libkiara.ping()
-
 # OK, run over the files.
 for file in args.file:
-	libkiara.process(os.path.abspath(file),
+	printed = False
+	for line in libkiara.process(os.path.abspath(file),
 			update_info=args.update_info,
 			watch=args.watch,
 			organize=args.organize,
 			organize_copy=args.organize_copy,
-			organize_overwrite=args.organize_overwrite)
+			organize_overwrite=args.organize_overwrite):
+		f = format_status(line)
+		if f:
+			printed = True
+			print(f)
+	if printed:
+		print() # Blank line
 if args.find_duplicates:
 	print('Locating duplicate files...')
-	libkiara.find_duplicates()
+	for line in libkiara.find_duplicates():
+		f = format_status(line)
+		if f:
+			print(f)
 if args.forget_fid:
-	libkiara.forget(*args.forget_fid)
+	for line in libkiara.forget(*args.forget_fid):
+		f = format_status(line)
+		if f:
+			print(f)

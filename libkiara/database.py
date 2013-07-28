@@ -52,7 +52,6 @@ def _check_connection():
 		c.execute('select 1 from file')
 		c.fetchall()
 	except sqlite3.OperationalError:
-		print('reconnecting to database')
 		conn.close()
 		connect(db, username)
 
@@ -88,7 +87,6 @@ def load(thing):
 			return
 		
 		if r[0] != thing.name:
-			print('Filename in database have changed')
 			thing.dirty = True
 		thing.fid, thing.aid, thing.crc32, thing.ep_no, thing.group_name, \
 			thing.file_type = r[1:7]
@@ -185,7 +183,7 @@ def find_duplicates():
 			)
 	''')
 	for aid, name, ep in c.fetchall():
-		yield 'Duplicate files for %s - %s:' % (name, ep)
+		yield ['status', 'dups_for', name, str(ep)]
 		f.execute('''
 			SELECT fid, filename, file_type
 			FROM file
@@ -193,8 +191,9 @@ def find_duplicates():
 		''', (aid, ep))
 		for fid, name, type in f.fetchall():
 			if not type:
-				type = 'unknown - please try re-kiara\'ing this file'
-			yield '    %d  %s  [%s]' % (fid, name, type)
+				yield ['status', 'dup_no_type', str(fid), name]
+			else:
+				yield ['status', 'dup', str(fid), name, type]
 
 def forget(fid):
 	_check_connection()
@@ -206,8 +205,8 @@ def forget(fid):
 		'SELECT count(*) FROM file_status WHERE fid = ?',
 		(fid,))
 	if c.fetchone() != (0,):
-		yield '!!! Other users are using that file, I won\'t forget about that'
+		yield ['error', 'dups_forget_in_use']
 	else:
 		c.execute('DELETE FROM file WHERE fid = ?', (fid,))
-		yield 'Forgot about %d' % fid
+		yield ['status', 'dups_forgot', str(fid)]
 	conn.commit()

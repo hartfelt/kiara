@@ -7,6 +7,7 @@ It will also mark those files watched, and organize them nicely in folders.
 Requirements
 ------------
 Python 3.2 (or newer)
+colorama (optional) - if you want colored output
 
 Installation
 ------------
