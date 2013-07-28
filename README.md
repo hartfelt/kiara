@@ -45,3 +45,5 @@ From `kiara -h`:
 	                        Delete all info from the database (but not the file
 	                        itself) about the files with the giver anidb file-id.
 	                        (These are the numbers output by --find-duplicates
+	  --brief               If nothing goes wrong, print only a single line for
+	                        each file

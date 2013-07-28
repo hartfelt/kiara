@@ -34,6 +34,9 @@ parser.add_argument('--forget',
 	help='Delete all info from the database (but not the file itself) about '
 		'the files with the giver anidb file-id. (These are the numbers output '
 		'by --find-duplicates')
+parser.add_argument('--brief',
+	action='store_true', dest='brief',
+	help='If nothing goes wrong, print only a single line for each file')
 parser.add_argument('file',
 	metavar='FILE', type=str, nargs='*',
 	help='A file to do something with')
@@ -167,6 +170,7 @@ if not libkiara.check_config():
 # OK, run over the files.
 for file in args.file:
 	printed = False
+	msgs = list()
 	for line in libkiara.process(os.path.abspath(file),
 			update_info=args.update_info,
 			watch=args.watch,
@@ -174,10 +178,21 @@ for file in args.file:
 			organize_copy=args.organize_copy,
 			organize_overwrite=args.organize_overwrite):
 		f = format_status(line)
-		if f:
-			printed = True
-			print(f)
-	if printed:
+		if args.brief:
+			if line[0] == 'error':
+				for m in msgs:
+					print(m)
+				print(f)
+				printed = True
+			else:
+				msgs.append(f)
+		else:
+			if f:
+				printed = True
+				print(f)
+	if args.brief and not printed:
+		print(format_status(['success', '_', file]))
+	elif printed:
 		print() # Blank line
 if args.find_duplicates:
 	print('Locating duplicate files...')
