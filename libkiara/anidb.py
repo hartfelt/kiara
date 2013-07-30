@@ -112,7 +112,7 @@ def _comm(command, **kwargs):
 				# Retry it only once. If this fails, anidb is either broken, or
 				# blocking us
 				output('error', 'socket_timeout_again')
-				raise AbanonShip
+				raise AbandonShip
 		
 		output('debug', '_', '<-- %s' % reply)
 		if reply[0:3] == "555" or reply[6:9] == '555':
