@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import os.path
+import os, os.path
 import sys
 import libkiara
 
@@ -47,6 +47,12 @@ parser.add_argument('file',
 args = parser.parse_args()
 
 # Status printing.
+
+LINES = 80
+try:
+	_, LINES = map(int, os.popen('stty size', 'r').read().split())
+except:
+	pass
 def pp(head):
 	def inner(s):
 		res = ''
@@ -57,7 +63,7 @@ def pp(head):
 			if line:
 				line += ' '
 			line += parts.pop(0)
-			if parts and len(line) + len(parts[0]) > 71:
+			if parts and len(line) + len(parts[0]) > LINES-10:
 				res += tag + line + '\n'
 				line = ''
 				tag = ' ' * len(tag)
@@ -155,9 +161,12 @@ def format_status(status):
 			else:
 				return None
 	except Exception as e:
-		print(colorama.Fore.WHITE + colorama.Back.RED)
-		print(e)
-		print(colorama.Fore.RESET + colorama.Back.RESET)
+		if 'colorama' in globals():
+			print(colorama.Fore.WHITE + colorama.Back.RED)
+			print(e)
+			print(colorama.Fore.RESET + colorama.Back.RESET)
+		else:
+			print(e)
 		
 	# Legacy status.
 	return prnt['legacy'](status)
@@ -193,16 +202,19 @@ for file in args.file:
 			organize_copy=args.organize_copy,
 			organize_overwrite=args.organize_overwrite):
 		f = format_status(line)
-		if args.brief:
-			if line[0] == 'error':
-				for m in msgs:
-					print(m)
-				print(f)
-				printed = True
+		if f:
+			if args.brief:
+				if printed:
+					print(f)
+				else:
+					if line[0] == 'error':
+						while msgs:
+							print(msgs.pop(0))
+						print(f)
+						printed = True
+					else:
+						msgs.append(f)
 			else:
-				msgs.append(f)
-		else:
-			if f:
 				printed = True
 				print(f)
 	if args.brief and not printed:
