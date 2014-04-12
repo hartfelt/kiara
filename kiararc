@@ -1,13 +1,15 @@
 ### Default configuration file for kiara.py
-# Copy this to ~/.kiararc and change to your needs
+# Copy this to ~/.kiararc and change to your needs. Remove the # (hash-sign) in
+# front of the options you use.
 
 ### Your anidb login
 #user johndoe
 #pass secretpasswordinplaintextomg
 
 ### Base paths for the organize-option
-# If you don't want to distinguish between movies and series, just set the
-# same path for both.
+# Some mediacenters like to distinguish between movies and series, so you can
+# set a separate path for each. If you don't care for this distinction, you can
+# just set the same path for both.
 #basepath_movie ~/anime/movies
 #basepath_series ~/anime/series
 

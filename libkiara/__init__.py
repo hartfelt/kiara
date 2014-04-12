@@ -62,19 +62,24 @@ def _send(msg):
 		for i in inner():
 			yield i
 	except socket.error:
-		yield ['status', 'backend_start']
-		if os.fork():
-			# Wait for it...
-			time.sleep(2)
-			# Then try the command again. If it fails again, something we
-			# cannot fix is wrong
-			for i in inner():
-				yield i
-			return
-			yield ['error', 'backend_start_failed']
+		if msg == '- kill':
+			# We were unable to contact the backend, good.
+			yield ['status', 'no_backend_running']
 		else:
-			from libkiara import backend
-			backend.serve(_config)
+			# Normal procedure
+			yield ['status', 'backend_start']
+			if os.fork():
+				# Wait for it...
+				time.sleep(2)
+				# Then try the command again. If it fails again, something we
+				# cannot fix is wrong
+				for i in inner():
+					yield i
+				return
+				yield ['error', 'backend_start_failed']
+			else:
+				from libkiara import backend
+				backend.serve(_config)
 
 def ping():
 	wah = False
@@ -90,6 +95,7 @@ def ping():
 # u  Get new file info from anidb when the cache is old
 # w  Mark file watched
 # x  Overwrite existing files
+# -  Extra commands
 
 def process(file,
 		update_info=True, watch=False, organize=False, organize_copy=False,
@@ -115,4 +121,8 @@ def find_duplicates():
 
 def forget(*fids):
 	for line in _send('- forget ' + ' '.join(list(map(str, fids)))):
+		yield line
+
+def kill():
+	for line in _send('- kill'):
 		yield line

@@ -47,3 +47,4 @@ From `kiara -h`:
 	                        (These are the numbers output by --find-duplicates
 	  --brief               If nothing goes wrong, print only a single line for
 	                        each file
+	  --kill                Shut down the backend

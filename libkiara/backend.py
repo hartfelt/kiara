@@ -93,6 +93,8 @@ class Handler(socketserver.BaseRequestHandler):
 		return super().__init__(*args, **kwargs)
 	
 	def reply(self, message, catch_fails=True):
+		if type(message) == tuple:
+			message = list(message)
 		if type(message) == list:
 			message = '\n'.join(message)
 		self.write(message + '\n', catch_fails)
@@ -117,6 +119,7 @@ class Handler(socketserver.BaseRequestHandler):
 					self.reply(['success', 'anidb_ping_ok'])
 				else:
 					self.reply(['error', 'anidb_ping_error'])
+			
 			if file_name == 'dups':
 				dups = False
 				for line in database.find_duplicates():
@@ -124,10 +127,15 @@ class Handler(socketserver.BaseRequestHandler):
 					self.reply(line)
 				if not dups:
 					self.reply(['success', 'dups_none'])
+			
 			if file_name.startswith('forget'):
 				for fid in file_name.split(' ')[1:]:
 					for line in database.forget(int(fid)):
 						self.reply(line)
+			
+			if file_name == 'kill':
+				self.reply(['status', 'backend_shutting_down'])
+				self.shutdown()
 		else:
 			try:
 				# File related commands
@@ -224,5 +232,17 @@ def serve(cfg):
 	try:
 		os.remove(os.path.expanduser(config['session']))
 	except: pass
-	socketserver.UnixStreamServer(
-		os.path.expanduser(config['session']), Handler).serve_forever()
+	
+	run = [True]
+	def killer(r):
+		r[0] = False
+	
+	class ActualHandler(Handler):
+		def __init__(self, *args, **kwargs):
+			self.shutdown = lambda: killer(run)
+			return super().__init__(*args, **kwargs)
+	
+	server = socketserver.UnixStreamServer(
+		os.path.expanduser(config['session']), ActualHandler)
+	while run[0]:
+		server.handle_request()

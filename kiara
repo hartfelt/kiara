@@ -37,6 +37,9 @@ parser.add_argument('--forget',
 parser.add_argument('--brief',
 	action='store_true', dest='brief',
 	help='If nothing goes wrong, print only a single line for each file')
+parser.add_argument('--kill',
+	action='store_true', dest='kill',
+	help='Shut down the backend')
 parser.add_argument('file',
 	metavar='FILE', type=str, nargs='*',
 	help='A file to do something with')
@@ -98,8 +101,10 @@ trans = {
 	'anidb_marking_watched': 'Marking {0} {1} watched...',
 	'anidb_ping_error': 'No answer from anidb :(',
 	'anidb_ping_ok': 'Pinged anidb.',
+	'backend_shutting_down': 'Backend shutting down...',
 	'backend_start': 'Unable to contact the backend. Will try to start one...',
 	'backend_start_failed': 'Unable to start a new backend, sorry :(',
+	'backend_killed': 'Backend shut down',
 	'banned': 'We got banned :(\n{0}\nTry again in 30 minutes',
 	'dup': '- {0}  {1}  [{2}]',
 	'dup_no_type': '- {0}  {1}  [unknown - '
@@ -121,6 +126,7 @@ trans = {
 	'kiara_banned': 'kiara is banned from AniDB.\nYour AniDB user should be ok',
 	'kiara_outdated': 'kiara have become outdated :(\nCheck the interwebs for '
 		'an updated version',
+	'killing_backend': 'Killing backend...',
 	'logging_in': 'Logging in...',
 	'login_accepted_outdated_client': 'Login accepted, but your copy of kiara '
 		'is outdated.\nPlease consider updating it.',
@@ -129,6 +135,7 @@ trans = {
 	'login_session_key': 'We got session key {0}',
 	'login_unexpected_return': 'Unexpected return code to AUTH command. Please '
 		'show this to the delevopers of kiara: {0} {1}',
+	'no_backend_running': 'No backend running',
 	'oh_no': 'OH NOES: {0} {1}',
 	'removing_empty_dir': 'The dir {0} is now empty, will remove it.',
 	'socket_timeout': 'We got a socket timeout... hang on',
@@ -155,7 +162,15 @@ def format_status(status):
 	# Legacy status.
 	return prnt['legacy'](status)
 
-# First, make sure that all the files are actually files.
+# Should we kill the backend?
+if args.kill:
+	print(format_status(['status', 'killing_backend', []]))
+	for line in libkiara.kill():
+		print(format_status(line))
+	print(format_status(['success', 'backend_killed', []]))
+	sys.exit()
+
+# Make sure that all the files are actually files.
 for file in args.file:
 	if not os.path.isfile(os.path.abspath(file)):
 		print('!!! %s is not a file' % file)
