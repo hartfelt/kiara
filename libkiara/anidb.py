@@ -185,13 +185,13 @@ def _connect(force=False, needs_auth=True):
 		output('debug', 'login_session_key', session_key)
 
 def _type_map(ext):
-	if ext in ['mpg', 'mpeg', 'avi', 'mkv', 'ogm', 'mp4']:
+	if ext in ['mpg', 'mpeg', 'avi', 'mkv', 'ogm', 'mp4', 'wmv']:
 		return 'vid'
-	if ext in ['ssa', 'sub']:
+	if ext in ['ssa', 'sub', 'ass']:
 		return 'sub'
 	if ext in ['flac', 'mp3']:
 		return 'snd'
-	output('error', 'unknown_file_extension', ext)
+	output('error', 'unknown_file_extension', str(ext))
 	return None
 
 def load_info(thing, redirect):
